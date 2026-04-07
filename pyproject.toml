@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btc-toolkit"
+version = "0.1.0"
+description = "Bitcoin CLI toolkit — OP_RETURN decoder, balance checker, fee estimator & more. No Bitcoin Core required."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Davi de Jesus", email = "devdavidejesus@users.noreply.github.com"},
+]
+keywords = ["bitcoin", "op_return", "mempool", "cli", "blockchain"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/devdavidejesus/btc-toolkit"
+Repository = "https://github.com/devdavidejesus/btc-toolkit"
+Issues = "https://github.com/devdavidejesus/btc-toolkit/issues"
+
+[project.scripts]
+op-return-reader = "op_return_reader.cli:run"
+
+[tool.setuptools.packages.find]
+include = ["op_return_reader*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
