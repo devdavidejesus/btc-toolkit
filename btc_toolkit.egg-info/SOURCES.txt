@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+btc_toolkit.egg-info/PKG-INFO
+btc_toolkit.egg-info/SOURCES.txt
+btc_toolkit.egg-info/dependency_links.txt
+btc_toolkit.egg-info/entry_points.txt
+btc_toolkit.egg-info/top_level.txt
+op_return_reader/__init__.py
+op_return_reader/__main__.py
+op_return_reader/cli.py
+op_return_reader/decoder.py
+tests/test_decoder.py

@@ -1,0 +1,2 @@
+[console_scripts]
+op-return-reader = op_return_reader.cli:run

@@ -34,6 +34,15 @@ class TestHexDecode(unittest.TestCase):
     def test_empty_returns_none(self):
         self.assertIsNone(_decode_hex_to_text(""))
 
+    def test_null_bytes_stripped(self):
+        # Null bytes + "learnmeabitcoin" (real-world case)
+        hex_data = "00" * 60 + "6c6561726e6d6561626974636f696e"
+        result = _decode_hex_to_text(hex_data)
+        self.assertEqual(result, "learnmeabitcoin")
+
+    def test_only_null_bytes_returns_none(self):
+        self.assertIsNone(_decode_hex_to_text("0000000000"))
+
 
 class TestParseASM(unittest.TestCase):
     """Test scriptPubKey ASM parsing."""

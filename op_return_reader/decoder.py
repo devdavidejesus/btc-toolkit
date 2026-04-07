@@ -102,14 +102,26 @@ def _decode_hex_to_text(hex_data: str) -> str | None:
     Attempt to decode hex data as UTF-8 text.
 
     Returns None if the data is not valid UTF-8 text.
+    Strips null bytes and requires that at least 50% of
+    non-null characters are printable to avoid false positives
+    from binary data that happens to contain some ASCII.
     """
     try:
         raw = bytes.fromhex(hex_data)
         text = raw.decode("utf-8", errors="strict")
-        # Only return if it contains printable characters
-        if any(c.isprintable() and not c.isspace() for c in text):
-            return text
-        return None
+
+        # Strip null bytes — common padding in OP_RETURN data
+        cleaned = text.replace("\x00", "")
+
+        if not cleaned:
+            return None
+
+        # Require at least 50% printable characters in cleaned text
+        printable_count = sum(1 for c in cleaned if c.isprintable())
+        if printable_count / len(cleaned) < 0.5:
+            return None
+
+        return cleaned
     except (ValueError, UnicodeDecodeError):
         return None
 

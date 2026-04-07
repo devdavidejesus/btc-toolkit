@@ -1,3 +1,30 @@
+Metadata-Version: 2.4
+Name: btc-toolkit
+Version: 0.1.0
+Summary: Bitcoin CLI toolkit — OP_RETURN decoder, balance checker, fee estimator & more. No Bitcoin Core required.
+Author-email: Davi de Jesus <devdavidejesus@users.noreply.github.com>
+License: MIT
+Project-URL: Homepage, https://github.com/devdavidejesus/btc-toolkit
+Project-URL: Repository, https://github.com/devdavidejesus/btc-toolkit
+Project-URL: Issues, https://github.com/devdavidejesus/btc-toolkit/issues
+Keywords: bitcoin,op_return,mempool,cli,blockchain
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Utilities
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
 # btc-toolkit
 
 Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.
@@ -9,23 +36,23 @@ Uses the [Mempool.space](https://mempool.space) public API to query the Bitcoin 
 Decode human-readable messages embedded in Bitcoin transactions via `OP_RETURN` outputs.
 
 ```
-$ python -m op_return_reader f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
+$ python -m op_return_reader 2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3
 
   ___  ___   ___ ___ _____ _   _ ___ _  _
  / _ \| _ \ | _ \ __|_   _| | | | _ \ \| |
 | (_) |  _/ |   / _|  | | | |_| |   / .` |
  \___/|_|   |_|_\___| |_|  \___/|_|_\_|\_|
 
-  TXID:    f4ac7abc...53cd8cab
+  TXID:    2033435d...f61b38d3
   Network: mainnet
   ────────────────────────────────────────────
 
   ✓ Found 1 OP_RETURN output(s):
 
-  Output #0
-  ├─ Size:     34 bytes
-  ├─ Hex:      4372616967205772696768742069732061206c69617220616e...
-  └─ Message:  Craig Wright is a liar and a fraud
+  Output #1
+  ├─ Size:     20 bytes
+  ├─ Hex:      215477656e74792062797465206469676573742e
+  └─ Message:  !Twenty byte digest.
 ```
 
 ### Installation
@@ -54,16 +81,16 @@ python -m op_return_reader <txid> --json
 
 ```json
 {
-  "txid": "f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab",
+  "txid": "2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3",
   "network": "mainnet",
   "op_return_count": 1,
   "outputs": [
     {
-      "txid": "f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab",
-      "vout_index": 0,
-      "raw_hex": "4372616967205772696768742069732061206c69617220616e64206120667261756421",
-      "decoded_text": "Craig Wright is a liar and a fraud",
-      "size_bytes": 34
+      "txid": "2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3",
+      "vout_index": 1,
+      "raw_hex": "215477656e74792062797465206469676573742e",
+      "decoded_text": "!Twenty byte digest.",
+      "size_bytes": 20
     }
   ]
 }
@@ -93,8 +120,8 @@ These are real, verified OP_RETURN transactions on mainnet. Verify each one your
 
 | TXID | Description |
 |---|---|
-| `f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab` | "Craig Wright is a liar and a fraud" — 34 bytes ([source](https://armantheparman.com/op_return_old/)) |
-| `2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3` | "learnmeabitcoin" — 75-byte OP_RETURN with null-padded ASCII ([source](https://learnmeabitcoin.com/explorer/tx/)) |
+| `2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3` | First OP_RETURN with ASCII text: "!Twenty byte digest." ([source](https://learnmeabitcoin.com/explorer/tx/)) |
+| `f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab` | "Craig Wright is a liar and a fraud" ([source](https://armantheparman.com/op_return_old/)) |
 
 > **Note:** Satoshi's famous "Chancellor on brink of second bailout for banks" message is in the
 > **coinbase scriptSig** of the genesis block — NOT in an OP_RETURN output. That's a common
