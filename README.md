@@ -8,25 +8,7 @@ Uses the [Mempool.space](https://mempool.space) public API to query the Bitcoin 
 
 Decode human-readable messages embedded in Bitcoin transactions via `OP_RETURN` outputs.
 
-```
-$ python -m op_return_reader f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
-
-  ___  ___   ___ ___ _____ _   _ ___ _  _
- / _ \| _ \ | _ \ __|_   _| | | | _ \ \| |
-| (_) |  _/ |   / _|  | | | |_| |   / .` |
- \___/|_|   |_|_\___| |_|  \___/|_|_\_|\_|
-
-  TXID:    f4ac7abc...53cd8cab
-  Network: mainnet
-  ────────────────────────────────────────────
-
-  ✓ Found 1 OP_RETURN output(s):
-
-  Output #0
-  ├─ Size:     34 bytes
-  ├─ Hex:      4372616967205772696768742069732061206c69617220616e...
-  └─ Message:  Craig Wright is a liar and a fraud
-```
+![OP_RETURN Reader demo](assets/demo.png)
 
 ### Installation
 
@@ -113,9 +95,7 @@ Zero external dependencies — uses only Python's standard library (`urllib`, `j
 
 ### Testing
 
-```bash
-python -m pytest tests/ -v
-```
+![Tests passing](assets/tests.png)
 
 ### Project Structure
 
