@@ -158,11 +158,7 @@ Found a bug or want to help with a phase from the roadmap? Open an [issue](https
 
 <div align="center">
 
-**Davi de Jesus** · [@devdavidejesus](https://github.com/devdavidejesus)
-
-Bitcoin developer · Open-source contributor · [bitcoin.org PR #4652](https://github.com/bitcoin-dot-org/bitcoin.org/pull/4652)
-
-Licensed under [MIT](LICENSE)
+Licensed under [MIT](LICENSE) · Built by [@devdavidejesus](https://github.com/devdavidejesus)
 
 *"Don't Trust, Verify."*
 
