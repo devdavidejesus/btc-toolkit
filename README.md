@@ -21,6 +21,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 | Command | Description |
 |---|---|
 | `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction |
+| `btc-toolkit tx <txid>` | Full transaction details: status, fees, size, I/O, RBF |
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog |
 | `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest |
@@ -49,6 +50,19 @@ pip install -e .
 ```
 
 ## Usage
+
+### tx — inspect any transaction
+
+```bash
+btc-toolkit tx f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
+```
+
+Shows confirmation status and block, fee and fee rate (sat/vB), total input/output, size/weight/vsize, version, locktime — and flags coinbase and RBF-signaling transactions.
+
+```bash
+# JSON output for scripting
+btc-toolkit tx <txid> --json
+```
 
 ### balance — check any address
 
@@ -167,13 +181,15 @@ btc-toolkit/
 │   ├── balance.py        # Phase 2 — Address balance checker
 │   ├── fees.py           # Phase 3 — Fee estimator
 │   ├── block.py          # Phase 4 — Block info explorer
-│   └── utxo.py           # Phase 5 — UTXO set inspector
+│   ├── utxo.py           # Phase 5 — UTXO set inspector
+│   └── tx.py             # v1.1 — Transaction inspector
 ├── tests/
 │   ├── test_opreturn.py  # 18 tests (mocked API + parser validation)
 │   ├── test_balance.py   # 18 tests (sats math + API response parsing)
 │   ├── test_fees.py      # 6 tests (rates + backlog parsing)
 │   ├── test_block.py     # 12 tests (ref detection + genesis data)
-│   └── test_utxo.py      # 8 tests (aggregates + filters)
+│   ├── test_utxo.py      # 8 tests (aggregates + filters)
+│   └── test_tx.py        # 9 tests (fees, RBF, coinbase, consistency)
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -189,7 +205,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-62 tests, all API calls mocked — the suite runs offline.
+71 tests, all API calls mocked — the suite runs offline.
 
 ![Tests passing](assets/tests.png)
 
