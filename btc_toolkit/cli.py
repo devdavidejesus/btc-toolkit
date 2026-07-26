@@ -23,6 +23,7 @@ from .opreturn import decode_op_return, TransactionNotFoundError
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
 from .block import get_block, BlockNotFoundError
+from .utxo import get_utxos
 
 
 BANNER = r"""
@@ -276,6 +277,80 @@ def _block_json(args: argparse.Namespace) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# utxo subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_utxo(args: argparse.Namespace) -> int:
+    if args.json_output:
+        return _utxo_json(args)
+
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · utxo · Mempool.space API\n"))
+
+    addr_short = args.address if len(args.address) <= 24 else (
+        f"{args.address[:12]}...{args.address[-8:]}"
+    )
+    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Network:')} {args.network}")
+    print(f"  {'─' * 48}\n")
+
+    try:
+        us = get_utxos(args.address, args.network, args.confirmed_only)
+    except AddressNotFoundError:
+        print(f"  {c.red('✗')} Address not found.\n")
+        return 1
+    except MempoolAPIError as e:
+        print(f"  {c.red('✗')} API error: {e}\n")
+        return 1
+    except ValueError as e:
+        print(f"  {c.red('✗')} {e}\n")
+        return 1
+
+    if not us.utxos:
+        print(f"  {c.yellow('⚠')}  No UTXOs found for this address.\n")
+        return 0
+
+    label = "confirmed " if args.confirmed_only else ""
+    print(f"  {c.green('✓')} {len(us.utxos)} {label}UTXO(s) · "
+          f"{c.bold(us.sats_to_btc(us.total_sats) + ' BTC')} total\n")
+
+    shown = us.utxos[: args.limit]
+    for u in shown:
+        txid_short = f"{u.txid[:12]}...{u.txid[-6:]}"
+        status = c.green("✓ confirmed") if u.confirmed else c.yellow("⧗ mempool")
+        height = f"#{u.block_height:,}" if u.block_height else "—"
+        print(f"  ├─ {txid_short}:{u.vout}")
+        print(f"  │  {us.sats_to_btc(u.value)} BTC ({u.value:,} sats) · "
+              f"{status} · {c.dim(height)}")
+
+    remaining = len(us.utxos) - len(shown)
+    if remaining > 0:
+        print(f"  └─ {c.dim(f'… and {remaining} more (use --limit to show more)')}")
+    else:
+        print(f"  └─ {c.dim('end')}")
+
+    print()
+    if us.unconfirmed_count and not args.confirmed_only:
+        print(f"  {c.dim(f'Confirmed: {us.confirmed_count}  ·  '
+                          f'Mempool: {us.unconfirmed_count}')}")
+        print()
+    print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
+    return 0
+
+
+def _utxo_json(args: argparse.Namespace) -> int:
+    try:
+        us = get_utxos(args.address, args.network, args.confirmed_only)
+    except (AddressNotFoundError, MempoolAPIError, ValueError) as e:
+        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+        return 1
+
+    output = {"network": args.network, **us.to_dict()}
+    print(json.dumps(output, indent=2))
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
@@ -356,6 +431,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output as JSON.",
     )
     p_blk.set_defaults(func=_cmd_block)
+
+    # utxo
+    p_utxo = subparsers.add_parser(
+        "utxo", help="List the unspent outputs (UTXOs) of an address."
+    )
+    p_utxo.add_argument("address", help="Bitcoin address (any type).")
+    p_utxo.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        help="Bitcoin network (default: mainnet).",
+    )
+    p_utxo.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output as JSON.",
+    )
+    p_utxo.add_argument(
+        "--confirmed-only", action="store_true",
+        help="Exclude unconfirmed (mempool) UTXOs.",
+    )
+    p_utxo.add_argument(
+        "--limit", type=int, default=15,
+        help="Max UTXOs to display (default: 15; JSON always shows all).",
+    )
+    p_utxo.set_defaults(func=_cmd_utxo)
 
     return parser
 

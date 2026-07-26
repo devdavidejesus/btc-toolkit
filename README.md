@@ -24,7 +24,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address | ✅ Phase 2 |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog | ✅ Phase 3 |
 | `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest | ✅ Phase 4 |
-| `btc-toolkit utxo <address>` | UTXO set inspector | Phase 5 |
+| `btc-toolkit utxo <address>` | Unspent outputs of any address | ✅ Phase 5 |
 
 ## Installation
 
@@ -90,6 +90,27 @@ btc-toolkit block latest --json
 btc-toolkit block latest --network testnet
 ```
 
+### utxo — unspent outputs of any address
+
+```bash
+btc-toolkit utxo bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+```
+
+Lists every UTXO sorted by value (largest first), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
+
+> **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, ~76k donation outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
+
+```bash
+# Only confirmed UTXOs
+btc-toolkit utxo <address> --confirmed-only
+
+# Show more than 15 entries
+btc-toolkit utxo <address> --limit 50
+
+# JSON output (always includes all UTXOs)
+btc-toolkit utxo <address> --json
+```
+
 ### opreturn — decode embedded messages
 
 ```bash
@@ -133,12 +154,14 @@ btc-toolkit/
 │   ├── opreturn.py       # Phase 1 — OP_RETURN decoder
 │   ├── balance.py        # Phase 2 — Address balance checker
 │   ├── fees.py           # Phase 3 — Fee estimator
-│   └── block.py          # Phase 4 — Block info explorer
+│   ├── block.py          # Phase 4 — Block info explorer
+│   └── utxo.py           # Phase 5 — UTXO set inspector
 ├── tests/
 │   ├── test_opreturn.py  # 18 tests (mocked API + parser validation)
 │   ├── test_balance.py   # 18 tests (sats math + API response parsing)
 │   ├── test_fees.py      # 6 tests (rates + backlog parsing)
-│   └── test_block.py     # 12 tests (ref detection + genesis data)
+│   ├── test_block.py     # 12 tests (ref detection + genesis data)
+│   └── test_utxo.py      # 8 tests (aggregates + filters)
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -154,7 +177,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-54 tests, all API calls mocked — the suite runs offline.
+62 tests, all API calls mocked — the suite runs offline.
 
 ![Tests passing](assets/tests.png)
 
@@ -176,9 +199,9 @@ This is the same model used by Esplora/Electrs. Don't trust this README — veri
 - [x] **Phase 2** — Address Balance Checker
 - [x] **Phase 3** — Fee Estimator (mempool-based)
 - [x] **Phase 4** — Block Info Explorer
-- [ ] **Phase 5** — UTXO Set Inspector
+- [x] **Phase 5** — UTXO Set Inspector
 
-All phases follow the same philosophy: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+All five phases complete — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
 
 ## Don't Trust, Verify
 
@@ -187,6 +210,7 @@ Every txid, address, hex value, and technical claim in this README can be indepe
 - Address data: `https://mempool.space/api/address/<address>`
 - Fee data: `https://mempool.space/api/v1/fees/recommended`
 - Block data: `https://mempool.space/api/block/<hash>`
+- UTXO data: `https://mempool.space/api/address/<address>/utxo`
 - OP_RETURN spec: [learnmeabitcoin.com/technical/script/return](https://learnmeabitcoin.com/technical/script/return/)
 - Esplora API model: [github.com/Blockstream/esplora/blob/master/API.md](https://github.com/Blockstream/esplora/blob/master/API.md)
 
