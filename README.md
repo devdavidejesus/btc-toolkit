@@ -23,7 +23,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 | `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction | ✅ Phase 1 |
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address | ✅ Phase 2 |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog | ✅ Phase 3 |
-| `btc-toolkit block <height\|hash>` | Block metadata explorer | Phase 4 |
+| `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest | ✅ Phase 4 |
 | `btc-toolkit utxo <address>` | UTXO set inspector | Phase 5 |
 
 ## Installation
@@ -72,6 +72,24 @@ btc-toolkit fees --json
 btc-toolkit fees --network testnet
 ```
 
+### block — inspect any block
+
+```bash
+btc-toolkit block latest          # chain tip
+btc-toolkit block 0               # by height (genesis)
+btc-toolkit block 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f   # by hash
+```
+
+Shows height, hash, mined timestamp (UTC), tx count, size, weight, difficulty, nonce, and previous block hash.
+
+```bash
+# JSON output for scripting
+btc-toolkit block latest --json
+
+# Testnet
+btc-toolkit block latest --network testnet
+```
+
 ### opreturn — decode embedded messages
 
 ```bash
@@ -114,11 +132,13 @@ btc-toolkit/
 │   ├── colors.py         # Shared terminal color helpers
 │   ├── opreturn.py       # Phase 1 — OP_RETURN decoder
 │   ├── balance.py        # Phase 2 — Address balance checker
-│   └── fees.py           # Phase 3 — Fee estimator
+│   ├── fees.py           # Phase 3 — Fee estimator
+│   └── block.py          # Phase 4 — Block info explorer
 ├── tests/
 │   ├── test_opreturn.py  # 18 tests (mocked API + parser validation)
 │   ├── test_balance.py   # 18 tests (sats math + API response parsing)
-│   └── test_fees.py      # 6 tests (rates + backlog parsing)
+│   ├── test_fees.py      # 6 tests (rates + backlog parsing)
+│   └── test_block.py     # 12 tests (ref detection + genesis data)
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -134,7 +154,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-42 tests, all API calls mocked — the suite runs offline.
+54 tests, all API calls mocked — the suite runs offline.
 
 ![Tests passing](assets/tests.png)
 
@@ -155,7 +175,7 @@ This is the same model used by Esplora/Electrs. Don't trust this README — veri
 - [x] **Phase 1** — OP_RETURN Reader
 - [x] **Phase 2** — Address Balance Checker
 - [x] **Phase 3** — Fee Estimator (mempool-based)
-- [ ] **Phase 4** — Block Info Explorer
+- [x] **Phase 4** — Block Info Explorer
 - [ ] **Phase 5** — UTXO Set Inspector
 
 All phases follow the same philosophy: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
@@ -166,6 +186,7 @@ Every txid, address, hex value, and technical claim in this README can be indepe
 - Transaction data: `https://mempool.space/api/tx/<txid>`
 - Address data: `https://mempool.space/api/address/<address>`
 - Fee data: `https://mempool.space/api/v1/fees/recommended`
+- Block data: `https://mempool.space/api/block/<hash>`
 - OP_RETURN spec: [learnmeabitcoin.com/technical/script/return](https://learnmeabitcoin.com/technical/script/return/)
 - Esplora API model: [github.com/Blockstream/esplora/blob/master/API.md](https://github.com/Blockstream/esplora/blob/master/API.md)
 

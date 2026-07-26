@@ -22,6 +22,7 @@ from .api import MempoolAPIError, SUPPORTED_NETWORKS
 from .opreturn import decode_op_return, TransactionNotFoundError
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
+from .block import get_block, BlockNotFoundError
 
 
 BANNER = r"""
@@ -216,6 +217,65 @@ def _fees_json(args: argparse.Namespace) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# block subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_block(args: argparse.Namespace) -> int:
+    if args.json_output:
+        return _block_json(args)
+
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · block · Mempool.space API\n"))
+
+    print(f"  {c.bold('Block:')}   {args.ref}")
+    print(f"  {c.bold('Network:')} {args.network}")
+    print(f"  {'─' * 48}\n")
+
+    try:
+        blk = get_block(args.ref, args.network)
+    except BlockNotFoundError:
+        print(f"  {c.red('✗')} Block not found: {args.ref}\n")
+        return 1
+    except MempoolAPIError as e:
+        print(f"  {c.red('✗')} API error: {e}\n")
+        return 1
+    except ValueError as e:
+        print(f"  {c.red('✗')} {e}\n")
+        return 1
+
+    hash_short = f"{blk.hash[:16]}...{blk.hash[-8:]}"
+    prev_short = (
+        f"{blk.previousblockhash[:16]}...{blk.previousblockhash[-8:]}"
+        if blk.previousblockhash else c.dim("(none — genesis block)")
+    )
+
+    print(f"  {c.bold(f'Block #{blk.height:,}')}\n")
+    print(f"  ├─ Hash:        {c.green(hash_short)}")
+    print(f"  ├─ Mined:       {blk.timestamp_utc}")
+    print(f"  ├─ Txs:         {blk.tx_count:,}")
+    print(f"  ├─ Size:        {blk.size_mb:.2f} MB ({blk.size:,} bytes)")
+    print(f"  ├─ Weight:      {blk.weight:,} WU")
+    print(f"  ├─ Difficulty:  {blk.difficulty:,.0f}")
+    print(f"  ├─ Nonce:       {blk.nonce}")
+    print(f"  └─ Previous:    {prev_short}")
+    print()
+    print(f"  {c.dim(f'https://mempool.space/block/{blk.hash}')}\n")
+    return 0
+
+
+def _block_json(args: argparse.Namespace) -> int:
+    try:
+        blk = get_block(args.ref, args.network)
+    except (BlockNotFoundError, MempoolAPIError, ValueError) as e:
+        print(json.dumps({"error": str(e), "ref": args.ref}, indent=2))
+        return 1
+
+    output = {"network": args.network, **blk.to_dict()}
+    print(json.dumps(output, indent=2))
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
@@ -279,6 +339,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output as JSON.",
     )
     p_fees.set_defaults(func=_cmd_fees)
+
+    # block
+    p_blk = subparsers.add_parser(
+        "block", help="Show block metadata by height, hash, or 'latest'."
+    )
+    p_blk.add_argument(
+        "ref", help="Block height, 64-char block hash, or 'latest'.",
+    )
+    p_blk.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        help="Bitcoin network (default: mainnet).",
+    )
+    p_blk.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output as JSON.",
+    )
+    p_blk.set_defaults(func=_cmd_block)
 
     return parser
 
