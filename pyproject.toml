@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btc-toolkit"
-version = "0.2.0"
-description = "Bitcoin CLI toolkit — OP_RETURN decoder, balance checker & more. Zero deps, no Bitcoin Core required."
+version = "0.3.0"
+description = "Bitcoin CLI toolkit — OP_RETURN decoder, balance checker, fee estimator & more. Zero deps, no Bitcoin Core required."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"

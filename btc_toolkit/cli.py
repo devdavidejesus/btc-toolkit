@@ -21,6 +21,7 @@ from . import colors as c
 from .api import MempoolAPIError, SUPPORTED_NETWORKS
 from .opreturn import decode_op_return, TransactionNotFoundError
 from .balance import get_balance, AddressNotFoundError
+from .fees import get_fees
 
 
 BANNER = r"""
@@ -167,6 +168,54 @@ def _balance_json(args: argparse.Namespace) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# fees subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_fees(args: argparse.Namespace) -> int:
+    if args.json_output:
+        return _fees_json(args)
+
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · fees · Mempool.space API\n"))
+
+    print(f"  {c.bold('Network:')} {args.network}")
+    print(f"  {'─' * 48}\n")
+
+    try:
+        est = get_fees(args.network)
+    except MempoolAPIError as e:
+        print(f"  {c.red('✗')} API error: {e}\n")
+        return 1
+
+    print(f"  {c.bold('Recommended fee rates (sat/vB):')}\n")
+    print(f"  ├─ Fastest (~10 min):   {c.green(str(est.fastest))}")
+    print(f"  ├─ Half hour (~30 min): {c.green(str(est.half_hour))}")
+    print(f"  ├─ Hour (~60 min):      {c.yellow(str(est.hour))}")
+    print(f"  ├─ Economy:             {c.yellow(str(est.economy))}")
+    print(f"  └─ Minimum:             {c.dim(str(est.minimum))}")
+    print()
+    print(f"  {c.bold('Mempool backlog:')}\n")
+    print(f"  ├─ Pending txs:  {est.mempool_tx_count:,}")
+    print(f"  ├─ Size:         {est.mempool_vsize_mb:.2f} vMB")
+    print(f"  └─ ~Blocks to clear: {est.blocks_to_clear:.1f}")
+    print()
+    print(f"  {c.dim('https://mempool.space')}\n")
+    return 0
+
+
+def _fees_json(args: argparse.Namespace) -> int:
+    try:
+        est = get_fees(args.network)
+    except MempoolAPIError as e:
+        print(json.dumps({"error": str(e)}, indent=2))
+        return 1
+
+    output = {"network": args.network, **est.to_dict()}
+    print(json.dumps(output, indent=2))
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
@@ -216,6 +265,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output as JSON.",
     )
     p_bal.set_defaults(func=_cmd_balance)
+
+    # fees
+    p_fees = subparsers.add_parser(
+        "fees", help="Show recommended fee rates and mempool backlog."
+    )
+    p_fees.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        help="Bitcoin network (default: mainnet).",
+    )
+    p_fees.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output as JSON.",
+    )
+    p_fees.set_defaults(func=_cmd_fees)
 
     return parser
 
