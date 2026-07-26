@@ -59,7 +59,7 @@ btc-toolkit tx f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
 
 Shows confirmation status and block, fee and fee rate (sat/vB), total input/output, size/weight/vsize, version, locktime — and flags coinbase and RBF-signaling transactions.
 
-![btc-toolkit tx demo](assets/demo.png)
+![btc-toolkit tx demo](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/demo.png)
 
 ```bash
 # JSON output for scripting
@@ -207,7 +207,7 @@ python -m pytest tests/ -v
 
 71 tests, all API calls mocked — the suite runs offline.
 
-![Tests passing](assets/tests.png)
+![Tests passing](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/tests.png)
 
 ## How balance is computed
 
