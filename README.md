@@ -66,8 +66,8 @@ Real, verified OP_RETURN transactions on mainnet. Verify each one yourself on [m
 
 | TXID | Description |
 |---|---|
-| `f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab` | "Craig Wright is a liar and a fraud" — 34 bytes ([source](https://armantheparman.com/op_return_old/)) |
-| `2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3` | "learnmeabitcoin" — 75-byte OP_RETURN with null-padded ASCII ([source](https://learnmeabitcoin.com/explorer/tx/)) |
+| `f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab` | "Craig Wright is a liar and a fraud" — 34 bytes ([verify on-chain](https://mempool.space/tx/f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab)) |
+| `2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3` | "learnmeabitcoin" — 75-byte OP_RETURN with null-padded ASCII ([verify on-chain](https://mempool.space/tx/2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3)) |
 
 > **Note:** Satoshi's famous "Chancellor on brink of second bailout for banks" message is in the
 > **coinbase scriptSig** of the genesis block — NOT in an OP_RETURN output. That's a common
