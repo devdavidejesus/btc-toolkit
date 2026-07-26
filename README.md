@@ -1,8 +1,20 @@
-# btc-toolkit
+<div align="center">
 
-Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.
+# ₿ btc-toolkit
 
-Uses the [Mempool.space](https://mempool.space) public API to query the Bitcoin network directly.
+**Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.**
+
+Query the Bitcoin network directly via the [Mempool.space](https://mempool.space) public API.
+
+[![Tests](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml)
+[![Version](https://img.shields.io/github/v/tag/devdavidejesus/btc-toolkit?label=version&color=F7931A)](https://github.com/devdavidejesus/btc-toolkit/tags)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
+[![Dependencies](https://img.shields.io/badge/dependencies-zero-success)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+</div>
+
+---
 
 ## Commands
 
@@ -138,12 +150,20 @@ Every txid, address, hex value, and technical claim in this README can be indepe
 - OP_RETURN spec: [learnmeabitcoin.com/technical/script/return](https://learnmeabitcoin.com/technical/script/return/)
 - Esplora API model: [github.com/Blockstream/esplora/blob/master/API.md](https://github.com/Blockstream/esplora/blob/master/API.md)
 
-## License
+## Contributing
 
-MIT — see [LICENSE](LICENSE).
+Found a bug or want to help with a phase from the roadmap? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution must keep the core rules: stdlib only, tests mocked, claims verifiable on-chain.
 
-## Author
+---
 
-**Davi de Jesus** — [@devdavidejesus](https://github.com/devdavidejesus)
+<div align="center">
+
+**Davi de Jesus** · [@devdavidejesus](https://github.com/devdavidejesus)
 
 Bitcoin developer · Open-source contributor · [bitcoin.org PR #4652](https://github.com/bitcoin-dot-org/bitcoin.org/pull/4652)
+
+Licensed under [MIT](LICENSE)
+
+*"Don't Trust, Verify."*
+
+</div>
