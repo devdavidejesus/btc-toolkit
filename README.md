@@ -18,17 +18,29 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 
 ## Commands
 
-| Command | Description | Status |
-|---|---|---|
-| `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction | ✅ Phase 1 |
-| `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address | ✅ Phase 2 |
-| `btc-toolkit fees` | Recommended fee rates + mempool backlog | ✅ Phase 3 |
-| `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest | ✅ Phase 4 |
-| `btc-toolkit utxo <address>` | Unspent outputs of any address | ✅ Phase 5 |
+| Command | Description |
+|---|---|
+| `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction |
+| `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address |
+| `btc-toolkit fees` | Recommended fee rates + mempool backlog |
+| `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest |
+| `btc-toolkit utxo <address>` | Unspent outputs of any address |
 
 ## Installation
 
 **Requirements:** Python 3.10+
+
+```bash
+pip install btc-toolkit
+```
+
+Or isolated, via [pipx](https://pipx.pypa.io):
+
+```bash
+pipx install btc-toolkit
+```
+
+From source:
 
 ```bash
 git clone https://github.com/devdavidejesus/btc-toolkit.git
@@ -192,6 +204,20 @@ total       = confirmed + unconfirmed
 ```
 
 This is the same model used by Esplora/Electrs. Don't trust this README — verify against `https://mempool.space/api/address/<address>` yourself.
+
+## What this is / What this isn't
+
+**This is** an explorer client for the terminal - a fast, scriptable way to
+inspect the Bitcoin blockchain without running infrastructure. Ideal for
+learning, scripting, quick lookups, and teaching how Bitcoin data is
+structured.
+
+**This isn't** a substitute for a full node. All data comes from the
+Mempool.space API: this tool does not validate blocks, verify merkle proofs,
+or check consensus rules. You are trusting the API's view of the chain -
+that's the explicit trade-off for requiring zero infrastructure. For
+sovereign, trustless verification, run [Bitcoin Core](https://bitcoincore.org)
+and query your own node.
 
 ## Roadmap
 
