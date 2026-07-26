@@ -24,6 +24,7 @@ from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
 from .block import get_block, BlockNotFoundError
 from .utxo import get_utxos
+from .tx import get_tx
 
 
 BANNER = r"""
@@ -351,6 +352,88 @@ def _utxo_json(args: argparse.Namespace) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# tx subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_tx(args: argparse.Namespace) -> int:
+    if args.json_output:
+        return _tx_json(args)
+
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · tx · Mempool.space API\n"))
+
+    txid_short = f"{args.txid[:8]}...{args.txid[-8:]}"
+    print(f"  {c.bold('TXID:')}    {txid_short}")
+    print(f"  {c.bold('Network:')} {args.network}")
+    print(f"  {'─' * 48}\n")
+
+    try:
+        tx = get_tx(args.txid, args.network)
+    except TransactionNotFoundError:
+        print(f"  {c.red('✗')} Transaction not found.\n")
+        return 1
+    except MempoolAPIError as e:
+        print(f"  {c.red('✗')} API error: {e}\n")
+        return 1
+    except ValueError as e:
+        print(f"  {c.red('✗')} {e}\n")
+        return 1
+
+    if tx.confirmed:
+        status = c.green(f"✓ confirmed · block #{tx.block_height:,}")
+        if tx.block_time_utc:
+            status += c.dim(f" · {tx.block_time_utc}")
+    else:
+        status = c.yellow("⧗ unconfirmed (mempool)")
+
+    print(f"  {c.bold('Status:')}   {status}")
+
+    flags = []
+    if tx.is_coinbase:
+        flags.append(c.cyan("coinbase"))
+    if tx.is_rbf:
+        flags.append(c.yellow("RBF"))
+    if flags:
+        print(f"  {c.bold('Flags:')}    {' · '.join(flags)}")
+    print()
+
+    print(f"  {c.bold('Amounts:')}\n")
+    if not tx.is_coinbase:
+        print(f"  ├─ Total in:   {tx.total_input:,} sats")
+    print(f"  ├─ Total out:  {tx.total_output:,} sats")
+    if not tx.is_coinbase:
+        print(f"  ├─ Fee:        {c.green(f'{tx.fee:,} sats')}")
+        print(f"  └─ Fee rate:   {c.green(f'{tx.fee_rate:.2f} sat/vB')}")
+    else:
+        print(f"  └─ Fee:        {c.dim('0 (coinbase — collects block reward)')}")
+    print()
+
+    print(f"  {c.bold('Structure:')}\n")
+    print(f"  ├─ Inputs:     {tx.input_count}")
+    print(f"  ├─ Outputs:    {tx.output_count}")
+    print(f"  ├─ Size:       {tx.size:,} bytes")
+    print(f"  ├─ Weight:     {tx.weight:,} WU")
+    print(f"  ├─ vSize:      {tx.vsize:,} vB")
+    print(f"  ├─ Version:    {tx.version}")
+    print(f"  └─ Locktime:   {tx.locktime}")
+    print()
+    print(f"  {c.dim(f'https://mempool.space/tx/{args.txid}')}\n")
+    return 0
+
+
+def _tx_json(args: argparse.Namespace) -> int:
+    try:
+        tx = get_tx(args.txid, args.network)
+    except (TransactionNotFoundError, MempoolAPIError, ValueError) as e:
+        print(json.dumps({"error": str(e), "txid": args.txid}, indent=2))
+        return 1
+
+    output = {"network": args.network, **tx.to_dict()}
+    print(json.dumps(output, indent=2))
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
@@ -454,6 +537,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max UTXOs to display (default: 15; JSON always shows all).",
     )
     p_utxo.set_defaults(func=_cmd_utxo)
+
+    # tx
+    p_tx = subparsers.add_parser(
+        "tx", help="Inspect a transaction: status, fees, size, I/O, RBF."
+    )
+    p_tx.add_argument("txid", help="Bitcoin transaction ID (64-char hex).")
+    p_tx.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        help="Bitcoin network (default: mainnet).",
+    )
+    p_tx.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output as JSON.",
+    )
+    p_tx.set_defaults(func=_cmd_tx)
 
     return parser
 
