@@ -25,6 +25,7 @@ from .fees import get_fees
 from .block import get_block, BlockNotFoundError
 from .utxo import get_utxos
 from .tx import get_tx
+from .address import get_address_overview
 
 
 BANNER = r"""
@@ -62,7 +63,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
         return 1
     except ValueError as e:
         print(f"  {c.red('✗')} {e}\n")
-        return 1
+        return 2
 
     if not results:
         print(f"  {c.yellow('⚠')}  No OP_RETURN outputs found in this transaction.\n")
@@ -135,7 +136,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
         return 1
     except ValueError as e:
         print(f"  {c.red('✗')} {e}\n")
-        return 1
+        return 2
 
     confirmed_btc = bal.sats_to_btc(bal.confirmed_sats)
     total_btc = bal.sats_to_btc(bal.total_sats)
@@ -243,7 +244,7 @@ def _cmd_block(args: argparse.Namespace) -> int:
         return 1
     except ValueError as e:
         print(f"  {c.red('✗')} {e}\n")
-        return 1
+        return 2
 
     hash_short = f"{blk.hash[:16]}...{blk.hash[-8:]}"
     prev_short = (
@@ -305,7 +306,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
         return 1
     except ValueError as e:
         print(f"  {c.red('✗')} {e}\n")
-        return 1
+        return 2
 
     if not us.utxos:
         print(f"  {c.yellow('⚠')}  No UTXOs found for this address.\n")
@@ -377,7 +378,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
         return 1
     except ValueError as e:
         print(f"  {c.red('✗')} {e}\n")
-        return 1
+        return 2
 
     if tx.confirmed:
         status = c.green(f"✓ confirmed · block #{tx.block_height:,}")
@@ -429,6 +430,69 @@ def _tx_json(args: argparse.Namespace) -> int:
         return 1
 
     output = {"network": args.network, **tx.to_dict()}
+    print(json.dumps(output, indent=2))
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# address subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_address(args: argparse.Namespace) -> int:
+    if args.json_output:
+        return _address_json(args)
+
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · address · Mempool.space API\n"))
+
+    addr_short = args.address if len(args.address) <= 24 else (
+        f"{args.address[:12]}...{args.address[-8:]}"
+    )
+    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Network:')} {args.network}")
+    print(f"  {'─' * 48}\n")
+
+    try:
+        ov = get_address_overview(args.address, args.network)
+    except AddressNotFoundError:
+        print(f"  {c.red('✗')} Address not found.\n")
+        return 1
+    except MempoolAPIError as e:
+        print(f"  {c.red('✗')} API error: {e}\n")
+        return 1
+    except ValueError as e:
+        print(f"  {c.red('✗')} {e}\n")
+        return 2
+
+    bal = ov.balance
+    print(f"  {c.bold('Type:')}        {c.cyan(ov.address_type)}")
+    print(f"  {c.bold('Confirmed:')}   {c.green(bal.sats_to_btc(bal.confirmed_sats) + ' BTC')}")
+    if bal.unconfirmed_sats != 0:
+        color = c.yellow if bal.unconfirmed_sats > 0 else c.red
+        print(f"  {c.bold('Unconfirmed:')} {color(bal.sats_to_btc(bal.unconfirmed_sats) + ' BTC')}")
+        print(f"  {c.bold('Total:')}       {c.green(bal.sats_to_btc(bal.total_sats) + ' BTC')}")
+    print()
+    print(f"  {c.bold('Lifetime:')}\n")
+    print(f"  ├─ Received:   {bal.sats_to_btc(bal.funded_sats)} BTC")
+    print(f"  ├─ Spent:      {bal.sats_to_btc(bal.spent_sats)} BTC")
+    print(f"  ├─ Confirmed txs: {bal.confirmed_tx_count:,}")
+    print(f"  └─ Mempool txs:   {bal.mempool_tx_count}")
+    print()
+    print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
+    return 0
+
+
+def _address_json(args: argparse.Namespace) -> int:
+    try:
+        ov = get_address_overview(args.address, args.network)
+    except (AddressNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+        return 1
+    except ValueError as e:
+        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+        return 2
+
+    output = {"network": args.network, **ov.to_dict()}
     print(json.dumps(output, indent=2))
     return 0
 
@@ -552,6 +616,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output as JSON.",
     )
     p_tx.set_defaults(func=_cmd_tx)
+
+    # address
+    p_addr = subparsers.add_parser(
+        "address", help="Aggregated overview of an address: type, balance, lifetime totals."
+    )
+    p_addr.add_argument("address", help="Bitcoin address (any type).")
+    p_addr.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        help="Bitcoin network (default: mainnet).",
+    )
+    p_addr.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help="Output as JSON.",
+    )
+    p_addr.set_defaults(func=_cmd_address)
 
     return parser
 
