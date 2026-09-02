@@ -22,6 +22,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 |---|---|
 | `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction |
 | `btc-toolkit tx <txid>` | Full transaction details: status, fees, size, I/O, RBF |
+| `btc-toolkit address <address>` | Aggregated overview: type, balance, lifetime totals |
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog |
 | `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest |
@@ -64,6 +65,19 @@ Shows confirmation status and block, fee and fee rate (sat/vB), total input/outp
 ```bash
 # JSON output for scripting
 btc-toolkit tx <txid> --json
+```
+
+### address — aggregated overview
+
+```bash
+btc-toolkit address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+```
+
+One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR — detected offline from the prefix, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
+
+```bash
+# JSON output for scripting
+btc-toolkit address <address> --json
 ```
 
 ### balance — check any address
@@ -182,14 +196,17 @@ btc-toolkit/
 │   ├── fees.py           # Phase 3 — Fee estimator
 │   ├── block.py          # Phase 4 — Block info explorer
 │   ├── utxo.py           # Phase 5 — UTXO set inspector
-│   └── tx.py             # v1.1 — Transaction inspector
+│   ├── tx.py             # v1.1 — Transaction inspector
+│   └── address.py        # v1.2 — Address overview + type detection
 ├── tests/
 │   ├── test_opreturn.py  # 18 tests (mocked API + parser validation)
 │   ├── test_balance.py   # 18 tests (sats math + API response parsing)
 │   ├── test_fees.py      # 6 tests (rates + backlog parsing)
 │   ├── test_block.py     # 12 tests (ref detection + genesis data)
 │   ├── test_utxo.py      # 8 tests (aggregates + filters)
-│   └── test_tx.py        # 9 tests (fees, RBF, coinbase, consistency)
+│   ├── test_tx.py        # 9 tests (fees, RBF, coinbase, consistency)
+│   ├── test_api.py       # 6 tests (retry/backoff policy)
+│   └── test_address.py   # 10 tests (type detection + aggregates)
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -199,13 +216,18 @@ Every subcommand shares one HTTP client (`api.py`) — new phases add a module +
 
 Zero external dependencies — Python standard library only (`urllib`, `json`, `argparse`).
 
+## Reliability
+
+- **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) are retried up to 3 times with exponential backoff (0.5s, 1s). Definitive errors (400, 404) fail immediately.
+- **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
+
 ## Testing
 
 ```bash
 python -m pytest tests/ -v
 ```
 
-71 tests, all API calls mocked — the suite runs offline.
+87 tests, all API calls mocked — the suite runs offline.
 
 ![Tests passing](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/tests.png)
 
