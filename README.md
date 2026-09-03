@@ -229,7 +229,6 @@ python -m pytest tests/ -v
 
 87 tests, all API calls mocked — the suite runs offline.
 
-![Tests passing](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/tests.png)
 
 ## How balance is computed
 
