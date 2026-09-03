@@ -1,6 +1,6 @@
 <div align="center">
 
-# ₿ btc-toolkit
+<img src="https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/logo.svg" alt="btc-toolkit" width="640"/>
 
 **Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.**
 
