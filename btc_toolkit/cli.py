@@ -333,8 +333,8 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
 
     print()
     if us.unconfirmed_count and not args.confirmed_only:
-        print(f"  {c.dim(f'Confirmed: {us.confirmed_count}  ·  '
-                          f'Mempool: {us.unconfirmed_count}')}")
+        _dim_line = f"Confirmed: {us.confirmed_count}  ·  Mempool: {us.unconfirmed_count}"
+        print(f"  {c.dim(_dim_line)}")
         print()
     print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
     return 0
