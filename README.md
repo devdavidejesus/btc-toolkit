@@ -25,7 +25,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 | `btc-toolkit address <address>` | Aggregated overview: type, balance, lifetime totals |
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog |
-| `btc-toolkit block <height\|hash>` | Block metadata by height, hash, or latest |
+| `btc-toolkit block <height\|hash\|latest>` | Block metadata by height, hash, or latest |
 | `btc-toolkit utxo <address>` | Unspent outputs of any address |
 
 ## Installation
@@ -49,6 +49,10 @@ git clone https://github.com/devdavidejesus/btc-toolkit.git
 cd btc-toolkit
 pip install -e .
 ```
+
+**Shell completion** (optional): static scripts in
+[`completions/`](completions/) for bash and zsh — tab-complete
+commands, networks and flags, zero dependencies as always.
 
 ## Usage
 
@@ -92,8 +96,9 @@ Shows confirmed balance, unconfirmed (mempool) balance, and total — in BTC and
 # JSON output for scripting
 btc-toolkit balance <address> --json
 
-# Testnet
+# Testnet or signet
 btc-toolkit balance <address> --network testnet
+btc-toolkit balance <address> --network signet
 ```
 
 BTC conversion uses integer arithmetic (no floats) — satoshi-exact, always.
@@ -219,6 +224,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 ## Reliability
 
 - **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) are retried up to 3 times with exponential backoff (0.5s, 1s). Definitive errors (400, 404) fail immediately.
+- **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
 
 ## Testing
@@ -227,7 +233,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-87 tests, all API calls mocked — the suite runs offline.
+94 tests, all API calls mocked — the suite runs offline.
 
 
 ## How balance is computed
@@ -241,6 +247,19 @@ total       = confirmed + unconfirmed
 ```
 
 This is the same model used by Esplora/Electrs. Don't trust this README — verify against `https://mempool.space/api/address/<address>` yourself.
+
+## Use your own node
+
+Every command accepts `--api-url` pointing to any self-hosted
+[Mempool](https://github.com/mempool/mempool) instance (Umbrel, Start9,
+RaspiBlitz and similar node stacks ship one):
+
+```bash
+btc-toolkit balance <address> --api-url http://umbrel.local:3006/api
+```
+
+With your own instance, no third party sees your queries — the public
+mempool.space API is the zero-setup default, not a requirement.
 
 ## What this is / What this isn't
 
