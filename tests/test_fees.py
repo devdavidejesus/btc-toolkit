@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from btc_toolkit.fees import get_fees, FeeEstimate
+from btc_toolkit.fees import get_fees
 
 
 def _mock_api(fees_response, mempool_response):

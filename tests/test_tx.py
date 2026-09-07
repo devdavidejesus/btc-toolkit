@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from btc_toolkit.tx import get_tx, TxInfo
+from btc_toolkit.tx import get_tx
 
 TXID = "f" * 64
 
