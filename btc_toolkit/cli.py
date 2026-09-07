@@ -18,7 +18,7 @@ import sys
 
 from . import __version__
 from . import colors as c
-from .api import MempoolAPIError, SUPPORTED_NETWORKS
+from .api import set_api_base, MempoolAPIError, SUPPORTED_NETWORKS
 from .opreturn import decode_op_return, TransactionNotFoundError
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
@@ -501,6 +501,14 @@ def _address_json(args: argparse.Namespace) -> int:
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
+def _add_api_url(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--api-url", dest="api_url", default=None, metavar="URL",
+        help="Custom Mempool instance API root (e.g. http://umbrel.local:3006/api). "
+             "Overrides --network — your node, your rules.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="btc-toolkit",
@@ -531,6 +539,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_op.add_argument(
         "--raw", action="store_true", help="Show raw hex only (one per line).",
     )
+    _add_api_url(p_op)
     p_op.set_defaults(func=_cmd_opreturn)
 
     # balance
@@ -546,6 +555,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    _add_api_url(p_bal)
     p_bal.set_defaults(func=_cmd_balance)
 
     # fees
@@ -560,6 +570,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    _add_api_url(p_fees)
     p_fees.set_defaults(func=_cmd_fees)
 
     # block
@@ -577,6 +588,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    _add_api_url(p_blk)
     p_blk.set_defaults(func=_cmd_block)
 
     # utxo
@@ -600,6 +612,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=15,
         help="Max UTXOs to display (default: 15; JSON always shows all).",
     )
+    _add_api_url(p_utxo)
     p_utxo.set_defaults(func=_cmd_utxo)
 
     # tx
@@ -615,6 +628,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    _add_api_url(p_tx)
     p_tx.set_defaults(func=_cmd_tx)
 
     # address
@@ -630,6 +644,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    _add_api_url(p_addr)
     p_addr.set_defaults(func=_cmd_address)
 
     return parser
@@ -639,6 +654,9 @@ def run(argv: list[str] | None = None) -> int:
     """Main entry point. Returns an exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    if getattr(args, "api_url", None):
+        set_api_base(args.api_url)
+        args.network = "custom"
     return args.func(args)
 
 

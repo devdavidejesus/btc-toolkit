@@ -21,8 +21,13 @@ from . import __version__
 # Mempool.space API base URLs
 MEMPOOL_API = "https://mempool.space/api"
 MEMPOOL_TESTNET_API = "https://mempool.space/testnet/api"
+MEMPOOL_SIGNET_API = "https://mempool.space/signet/api"
 
-SUPPORTED_NETWORKS = ("mainnet", "testnet")
+SUPPORTED_NETWORKS = ("mainnet", "testnet", "signet")
+
+# Optional user-supplied API base (--api-url). When set, it wins over
+# the network presets — sovereignty first: point at your own instance.
+_custom_api_base: str | None = None
 
 _USER_AGENT = f"btc-toolkit/{__version__}"
 _TIMEOUT = 15
@@ -41,14 +46,33 @@ class NotFoundError(MempoolAPIError):
     """Raised when a requested resource (tx, address, block) is not found."""
 
 
+def set_api_base(url: str | None) -> None:
+    """
+    Override the API base with a custom Mempool instance URL.
+
+    Pass the full API root, e.g. http://umbrel.local:3006/api or
+    https://my-node.example/api. A trailing slash is stripped.
+    Pass None to reset to the public presets.
+    """
+    global _custom_api_base
+    _custom_api_base = url.rstrip("/") if url else None
+
+
 def get_api_base(network: str) -> str:
-    """Return the correct API base URL for the given network."""
+    """
+    Return the API base URL: the custom instance when set via
+    set_api_base()/--api-url, otherwise the preset for the network.
+    """
+    if _custom_api_base:
+        return _custom_api_base
     if network not in SUPPORTED_NETWORKS:
         raise ValueError(
             f"Unsupported network: {network}. Use one of: {SUPPORTED_NETWORKS}"
         )
     if network == "testnet":
         return MEMPOOL_TESTNET_API
+    if network == "signet":
+        return MEMPOOL_SIGNET_API
     return MEMPOOL_API
 
 
