@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from btc_toolkit.utxo import get_utxos, Utxo, UtxoSet
+from btc_toolkit.utxo import get_utxos, UtxoSet
 
 ADDR = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
 

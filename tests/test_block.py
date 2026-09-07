@@ -6,7 +6,6 @@ from unittest.mock import patch
 from btc_toolkit.block import (
     get_block,
     get_tip_height,
-    BlockInfo,
     _is_block_hash,
     _is_height,
 )
