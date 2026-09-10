@@ -30,7 +30,8 @@ SUPPORTED_NETWORKS = ("mainnet", "testnet", "signet")
 _custom_api_base: str | None = None
 
 _USER_AGENT = f"btc-toolkit/{__version__}"
-_TIMEOUT = 15
+DEFAULT_TIMEOUT = 15
+_TIMEOUT: float = DEFAULT_TIMEOUT
 
 # Retry policy — transient failures only
 _MAX_ATTEMPTS = 3
@@ -44,6 +45,22 @@ class MempoolAPIError(Exception):
 
 class NotFoundError(MempoolAPIError):
     """Raised when a requested resource (tx, address, block) is not found."""
+
+
+def set_timeout(seconds: float | None) -> None:
+    """Override the per-request timeout (seconds). None resets the default."""
+    global _TIMEOUT
+    if seconds is None:
+        _TIMEOUT = DEFAULT_TIMEOUT
+        return
+    if seconds <= 0:
+        raise ValueError("timeout must be positive")
+    _TIMEOUT = float(seconds)
+
+
+def get_timeout() -> float:
+    """Current per-request timeout in seconds."""
+    return _TIMEOUT
 
 
 def set_api_base(url: str | None) -> None:

@@ -2,12 +2,14 @@
 
 import io
 import json
+import os
+import sys
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from btc_toolkit import cli
-from btc_toolkit.api import set_api_base
+from btc_toolkit.api import set_api_base, set_timeout
 
 TXID = "f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab"
 ADDR = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
@@ -178,3 +180,110 @@ class TestCliFlags(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCliAutomation(unittest.TestCase):
+    """v1.4: env vars, --timeout, stdin / --file batch, JSON Lines."""
+
+    def setUp(self):
+        self._stdin = sys.stdin
+        for var in ("BTC_TOOLKIT_API_URL", "BTC_TOOLKIT_NETWORK", "BTC_TOOLKIT_TIMEOUT"):
+            os.environ.pop(var, None)
+
+    def tearDown(self):
+        sys.stdin = self._stdin
+        set_api_base(None)
+        set_timeout(None)
+        for var in ("BTC_TOOLKIT_API_URL", "BTC_TOOLKIT_NETWORK", "BTC_TOOLKIT_TIMEOUT"):
+            os.environ.pop(var, None)
+
+    # --- env vars ---
+    def test_env_network_sets_default(self):
+        os.environ["BTC_TOOLKIT_NETWORK"] = "signet"
+        args = cli.build_parser().parse_args(["fees"])
+        self.assertEqual(args.network, "signet")
+
+    def test_env_network_invalid_falls_back_to_mainnet(self):
+        os.environ["BTC_TOOLKIT_NETWORK"] = "regtest"
+        args = cli.build_parser().parse_args(["fees"])
+        self.assertEqual(args.network, "mainnet")
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_env_api_url_applies(self, m):
+        os.environ["BTC_TOOLKIT_API_URL"] = "http://node.local:3006/api"
+        m.return_value = ADDR_DATA
+        code, out = _run(["balance", ADDR, "--json"])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["network"], "custom")
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_flag_api_url_beats_env(self, m):
+        os.environ["BTC_TOOLKIT_API_URL"] = "http://env.local/api"
+        m.return_value = ADDR_DATA
+        from btc_toolkit.api import get_api_base
+        _run(["balance", ADDR, "--json", "--api-url", "http://flag.local/api"])
+        self.assertEqual(get_api_base("mainnet"), "http://flag.local/api")
+
+    # --- timeout ---
+    def test_timeout_flag_applies(self):
+        from btc_toolkit.api import get_timeout
+        _run(["tx", "nope", "--timeout", "3"])
+        self.assertEqual(get_timeout(), 3.0)
+
+    def test_timeout_env_applies(self):
+        from btc_toolkit.api import get_timeout
+        os.environ["BTC_TOOLKIT_TIMEOUT"] = "7"
+        _run(["tx", "nope"])
+        self.assertEqual(get_timeout(), 7.0)
+
+    def test_timeout_invalid_exits_2(self):
+        code, _ = _run(["tx", "0" * 64, "--timeout", "0"])
+        self.assertEqual(code, 2)
+        os.environ["BTC_TOOLKIT_TIMEOUT"] = "abc"
+        code, _ = _run(["tx", "0" * 64])
+        self.assertEqual(code, 2)
+
+    # --- batch ---
+    @patch("btc_toolkit.balance.get_json")
+    def test_stdin_batch_json_lines(self, m):
+        m.side_effect = lambda path, net: dict(ADDR_DATA, address=path.split("/")[2])
+        sys.stdin = io.StringIO(f"{ADDR}\n# comment\n\n{ADDR}\n")
+        code, out = _run(["balance", "-", "--json"])
+        self.assertEqual(code, 0)
+        lines = [l for l in out.splitlines() if l.strip()]
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            self.assertEqual(json.loads(line)["address"], ADDR)
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_file_batch(self, m):
+        import tempfile
+        m.return_value = ADDR_DATA
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
+            fh.write(f"{ADDR}\n{ADDR}\n{ADDR}\n")
+            path = fh.name
+        code, out = _run(["balance", "--json", "--file", path])
+        os.unlink(path)
+        self.assertEqual(code, 0)
+        self.assertEqual(len([l for l in out.splitlines() if l.strip()]), 3)
+
+    def test_batch_worst_exit_code_wins(self):
+        sys.stdin = io.StringIO("!!!\n")
+        code, _ = _run(["balance", "-", "--json"])
+        self.assertEqual(code, 2)
+
+    def test_tty_without_input_exits_2(self):
+        class Tty:
+            def isatty(self): return True
+        sys.stdin = Tty()
+        code, _ = _run(["tx"])
+        self.assertEqual(code, 2)
+
+    def test_empty_batch_exits_2(self):
+        sys.stdin = io.StringIO("\n# only comments\n")
+        code, _ = _run(["tx", "-"])
+        self.assertEqual(code, 2)
+
+    def test_missing_file_exits_2(self):
+        code, _ = _run(["tx", "--file", "/nonexistent/txids.txt"])
+        self.assertEqual(code, 2)

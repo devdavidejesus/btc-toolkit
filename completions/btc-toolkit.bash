@@ -17,6 +17,6 @@ _btc_toolkit() {
             COMPREPLY=( $(compgen -W "mainnet testnet signet" -- "${cur}") )
             return 0 ;;
     esac
-    COMPREPLY=( $(compgen -W "--json --network --api-url --help" -- "${cur}") )
+    COMPREPLY=( $(compgen -W "--json --network --api-url --timeout --file --help" -- "${cur}") )
 }
 complete -F _btc_toolkit btc-toolkit
