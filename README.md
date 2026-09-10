@@ -172,6 +172,8 @@ btc-toolkit opreturn <txid> --json
 btc-toolkit opreturn <txid> --raw
 ```
 
+**Seen in the wild:** the $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded with this command, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159).
+
 ### Transactions to Try
 
 Real, verified OP_RETURN transactions on mainnet. Verify each one yourself on [mempool.space](https://mempool.space).
@@ -193,25 +195,22 @@ btc-toolkit/
 ├── btc_toolkit/
 │   ├── __init__.py       # Package version
 │   ├── __main__.py       # python -m entry point
-│   ├── cli.py            # Unified CLI with subcommands
-│   ├── api.py            # Shared Mempool.space HTTP client
+│   ├── cli.py            # Unified CLI: subcommands, batch mode, env vars, exit codes
+│   ├── api.py            # Shared Mempool HTTP client: retry, timeout, custom base URL
 │   ├── colors.py         # Shared terminal color helpers
-│   ├── opreturn.py       # Phase 1 — OP_RETURN decoder
-│   ├── balance.py        # Phase 2 — Address balance checker
-│   ├── fees.py           # Phase 3 — Fee estimator
-│   ├── block.py          # Phase 4 — Block info explorer
-│   ├── utxo.py           # Phase 5 — UTXO set inspector
-│   ├── tx.py             # v1.1 — Transaction inspector
-│   └── address.py        # v1.2 — Address overview + type detection
-├── tests/
-│   ├── test_opreturn.py  # 18 tests (mocked API + parser validation)
-│   ├── test_balance.py   # 18 tests (sats math + API response parsing)
-│   ├── test_fees.py      # 6 tests (rates + backlog parsing)
-│   ├── test_block.py     # 12 tests (ref detection + genesis data)
-│   ├── test_utxo.py      # 8 tests (aggregates + filters)
-│   ├── test_tx.py        # 9 tests (fees, RBF, coinbase, consistency)
-│   ├── test_api.py       # 6 tests (retry/backoff policy)
-│   └── test_address.py   # 10 tests (type detection + aggregates)
+│   ├── opreturn.py       # OP_RETURN decoder
+│   ├── balance.py        # Address balance
+│   ├── fees.py           # Fee estimator
+│   ├── block.py          # Block explorer
+│   ├── utxo.py           # UTXO inspector
+│   ├── tx.py             # Transaction inspector
+│   └── address.py        # Address overview + offline type detection
+├── tests/                # One file per module + test_cli.py — all API calls mocked
+├── completions/          # Static bash + zsh completions
+├── docs/
+│   ├── json-schema.md    # --json output per command + stability policy
+│   └── releases.md       # How releases are built and verified
+├── SECURITY.md           # Threat model + vulnerability reporting
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -313,7 +312,7 @@ and query your own node.
 - [x] **Phase 4** — Block Info Explorer
 - [x] **Phase 5** — UTXO Set Inspector
 
-All five phases complete — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+The original roadmap shipped in v1.0.0; later releases added `tx`, `address`, sovereignty (`--api-url`, signet) and automation (batch mode, env vars). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
 
 ## Don't Trust, Verify
 
