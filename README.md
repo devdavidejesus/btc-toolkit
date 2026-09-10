@@ -14,6 +14,12 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 
 </div>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/demo.gif" alt="btc-toolkit decoding the Liquid Network negotiation: first contact and the 2-byte :( that ended it" width="820"/>
+</p>
+
+<p align="center"><sub>The $320M Liquid Network drain was negotiated on-chain. Two of its messages, decoded live — <a href="https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159">read the whole story</a>.</sub></p>
+
 ---
 
 ## Commands
