@@ -18,7 +18,9 @@ import sys
 
 from . import __version__
 from . import colors as c
-from .api import set_api_base, MempoolAPIError, SUPPORTED_NETWORKS
+import os
+
+from .api import set_api_base, set_timeout, MempoolAPIError, SUPPORTED_NETWORKS
 from .opreturn import decode_op_return, TransactionNotFoundError
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
@@ -93,8 +95,11 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
 def _opreturn_json(args: argparse.Namespace) -> int:
     try:
         results = decode_op_return(args.txid, args.network)
-    except (TransactionNotFoundError, MempoolAPIError, ValueError) as e:
-        print(json.dumps({"error": str(e), "txid": args.txid}, indent=2))
+    except ValueError as e:  # invalid input -> exit 2, same as text mode
+        print(json.dumps({"error": str(e), "txid": args.txid}, indent=_indent()))
+        return 2
+    except (TransactionNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "txid": args.txid}, indent=_indent()))
         return 1
 
     output = {
@@ -103,7 +108,7 @@ def _opreturn_json(args: argparse.Namespace) -> int:
         "op_return_count": len(results),
         "outputs": [r.to_dict() for r in results],
     }
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -162,12 +167,15 @@ def _cmd_balance(args: argparse.Namespace) -> int:
 def _balance_json(args: argparse.Namespace) -> int:
     try:
         bal = get_balance(args.address, args.network)
-    except (AddressNotFoundError, MempoolAPIError, ValueError) as e:
-        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+    except ValueError as e:  # invalid input -> exit 2, same as text mode
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
+        return 2
+    except (AddressNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
         return 1
 
     output = {"network": args.network, **bal.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -211,11 +219,11 @@ def _fees_json(args: argparse.Namespace) -> int:
     try:
         est = get_fees(args.network)
     except MempoolAPIError as e:
-        print(json.dumps({"error": str(e)}, indent=2))
+        print(json.dumps({"error": str(e)}, indent=_indent()))
         return 1
 
     output = {"network": args.network, **est.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -269,12 +277,15 @@ def _cmd_block(args: argparse.Namespace) -> int:
 def _block_json(args: argparse.Namespace) -> int:
     try:
         blk = get_block(args.ref, args.network)
-    except (BlockNotFoundError, MempoolAPIError, ValueError) as e:
-        print(json.dumps({"error": str(e), "ref": args.ref}, indent=2))
+    except ValueError as e:  # invalid input -> exit 2, same as text mode
+        print(json.dumps({"error": str(e), "ref": args.ref}, indent=_indent()))
+        return 2
+    except (BlockNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "ref": args.ref}, indent=_indent()))
         return 1
 
     output = {"network": args.network, **blk.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -343,12 +354,15 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
 def _utxo_json(args: argparse.Namespace) -> int:
     try:
         us = get_utxos(args.address, args.network, args.confirmed_only)
-    except (AddressNotFoundError, MempoolAPIError, ValueError) as e:
-        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+    except ValueError as e:  # invalid input -> exit 2, same as text mode
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
+        return 2
+    except (AddressNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
         return 1
 
     output = {"network": args.network, **us.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -425,12 +439,15 @@ def _cmd_tx(args: argparse.Namespace) -> int:
 def _tx_json(args: argparse.Namespace) -> int:
     try:
         tx = get_tx(args.txid, args.network)
-    except (TransactionNotFoundError, MempoolAPIError, ValueError) as e:
-        print(json.dumps({"error": str(e), "txid": args.txid}, indent=2))
+    except ValueError as e:  # invalid input -> exit 2, same as text mode
+        print(json.dumps({"error": str(e), "txid": args.txid}, indent=_indent()))
+        return 2
+    except (TransactionNotFoundError, MempoolAPIError) as e:
+        print(json.dumps({"error": str(e), "txid": args.txid}, indent=_indent()))
         return 1
 
     output = {"network": args.network, **tx.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -486,14 +503,14 @@ def _address_json(args: argparse.Namespace) -> int:
     try:
         ov = get_address_overview(args.address, args.network)
     except (AddressNotFoundError, MempoolAPIError) as e:
-        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
         return 1
     except ValueError as e:
-        print(json.dumps({"error": str(e), "address": args.address}, indent=2))
+        print(json.dumps({"error": str(e), "address": args.address}, indent=_indent()))
         return 2
 
     output = {"network": args.network, **ov.to_dict()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, indent=_indent()))
     return 0
 
 
@@ -501,12 +518,78 @@ def _address_json(args: argparse.Namespace) -> int:
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
-def _add_api_url(parser: argparse.ArgumentParser) -> None:
+_BATCH = False  # set by run() when reading multiple items (stdin / --file)
+
+ENV_API_URL = "BTC_TOOLKIT_API_URL"
+ENV_NETWORK = "BTC_TOOLKIT_NETWORK"
+ENV_TIMEOUT = "BTC_TOOLKIT_TIMEOUT"
+
+
+def _indent() -> int | None:
+    """Pretty JSON for humans; one object per line (JSON Lines) in batch mode."""
+    return None if _BATCH else 2
+
+
+def _default_network() -> str:
+    """Network default: $BTC_TOOLKIT_NETWORK when valid, else mainnet."""
+    env = os.environ.get(ENV_NETWORK, "").strip().lower()
+    return env if env in SUPPORTED_NETWORKS else "mainnet"
+
+
+def _add_common_flags(parser: argparse.ArgumentParser, batch: bool = False) -> None:
     parser.add_argument(
         "--api-url", dest="api_url", default=None, metavar="URL",
         help="Custom Mempool instance API root (e.g. http://umbrel.local:3006/api). "
-             "Overrides --network — your node, your rules.",
+             f"Overrides --network — your node, your rules. Env: ${ENV_API_URL}.",
     )
+    parser.add_argument(
+        "--timeout", dest="timeout", type=float, default=None, metavar="SECONDS",
+        help=f"Per-request timeout in seconds (default 15). Env: ${ENV_TIMEOUT}.",
+    )
+    if batch:
+        parser.add_argument(
+            "--file", dest="file", default=None, metavar="PATH",
+            help="Read one item per line from PATH (blank lines and # comments "
+                 "ignored). With --json, output is JSON Lines.",
+        )
+
+
+def _add_api_url(parser: argparse.ArgumentParser) -> None:
+    # kept for readability at call sites; batch-capable commands opt in below
+    _add_common_flags(parser, batch=parser.prog.split()[-1] != "fees")
+
+
+def _positional_key(args: argparse.Namespace) -> str | None:
+    for key in ("txid", "address", "ref"):
+        if hasattr(args, key):
+            return key
+    return None
+
+
+def _collect_items(args: argparse.Namespace, key: str | None) -> list[str] | None:
+    """Return the list of items for batch mode, or None for a single run."""
+    if key is None:
+        return None
+    file_path = getattr(args, "file", None)
+    value = getattr(args, key)
+    if file_path is None and value != "-":
+        return None
+    if file_path is not None and value not in (None, "-"):
+        # both a positional and --file: the file wins, positional must be '-'
+        raise ValueError("use '-' as the positional when passing --file")
+    if file_path is None and sys.stdin.isatty():
+        raise ValueError(f"missing {key}: pass a value, use --file, or pipe items via stdin")
+    source = sys.stdin if file_path is None else open(file_path, encoding="utf-8")
+    try:
+        items = []
+        for line in source:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                items.append(line)
+    finally:
+        if source is not sys.stdin:
+            source.close()
+    return items
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -527,9 +610,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_op = subparsers.add_parser(
         "opreturn", help="Decode OP_RETURN messages from a transaction."
     )
-    p_op.add_argument("txid", help="Bitcoin transaction ID (64-char hex).")
+    p_op.add_argument("txid", nargs="?", default="-", help="Bitcoin transaction ID (64-char hex), or - to read from stdin.")
     p_op.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_op.add_argument(
@@ -546,9 +629,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_bal = subparsers.add_parser(
         "balance", help="Check the confirmed and unconfirmed balance of an address."
     )
-    p_bal.add_argument("address", help="Bitcoin address (any type).")
+    p_bal.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_bal.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_bal.add_argument(
@@ -563,7 +646,7 @@ def build_parser() -> argparse.ArgumentParser:
         "fees", help="Show recommended fee rates and mempool backlog."
     )
     p_fees.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_fees.add_argument(
@@ -577,11 +660,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_blk = subparsers.add_parser(
         "block", help="Show block metadata by height, hash, or 'latest'."
     )
-    p_blk.add_argument(
-        "ref", help="Block height, 64-char block hash, or 'latest'.",
+    p_blk.add_argument("ref", nargs="?", default="-", help="Block height, 64-char block hash, or 'latest'. Use - to read from stdin.",
     )
     p_blk.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_blk.add_argument(
@@ -595,9 +677,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_utxo = subparsers.add_parser(
         "utxo", help="List the unspent outputs (UTXOs) of an address."
     )
-    p_utxo.add_argument("address", help="Bitcoin address (any type).")
+    p_utxo.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_utxo.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_utxo.add_argument(
@@ -619,9 +701,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_tx = subparsers.add_parser(
         "tx", help="Inspect a transaction: status, fees, size, I/O, RBF."
     )
-    p_tx.add_argument("txid", help="Bitcoin transaction ID (64-char hex).")
+    p_tx.add_argument("txid", nargs="?", default="-", help="Bitcoin transaction ID (64-char hex), or - to read from stdin.")
     p_tx.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_tx.add_argument(
@@ -635,9 +717,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_addr = subparsers.add_parser(
         "address", help="Aggregated overview of an address: type, balance, lifetime totals."
     )
-    p_addr.add_argument("address", help="Bitcoin address (any type).")
+    p_addr.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_addr.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default="mainnet",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
     )
     p_addr.add_argument(
@@ -654,10 +736,49 @@ def run(argv: list[str] | None = None) -> int:
     """Main entry point. Returns an exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
-    if getattr(args, "api_url", None):
-        set_api_base(args.api_url)
+
+    api_url = getattr(args, "api_url", None) or os.environ.get(ENV_API_URL) or None
+    if api_url:
+        set_api_base(api_url)
         args.network = "custom"
-    return args.func(args)
+
+    timeout = getattr(args, "timeout", None)
+    if timeout is None and os.environ.get(ENV_TIMEOUT):
+        try:
+            timeout = float(os.environ[ENV_TIMEOUT])
+        except ValueError:
+            print(f"Error: ${ENV_TIMEOUT} must be a number.", file=sys.stderr)
+            return 2
+    if timeout is not None:
+        try:
+            set_timeout(timeout)
+        except ValueError as e:
+            print(f"Error: {e}.", file=sys.stderr)
+            return 2
+
+    key = _positional_key(args)
+    try:
+        items = _collect_items(args, key)
+    except (OSError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    if items is None:
+        return args.func(args)
+
+    if not items:
+        print("Error: no items to process.", file=sys.stderr)
+        return 2
+
+    global _BATCH
+    _BATCH = True
+    worst = 0
+    try:
+        for item in items:
+            setattr(args, key, item)
+            worst = max(worst, args.func(args))
+    finally:
+        _BATCH = False
+    return worst
 
 
 if __name__ == "__main__":

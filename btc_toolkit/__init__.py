@@ -1,3 +1,3 @@
 """btc-toolkit — Bitcoin CLI tools. Zero dependencies, no Bitcoin Core required."""
 
-__version__ = "1.3.1"
+__version__ = "1.4.0"

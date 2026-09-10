@@ -21,6 +21,8 @@ _btc_toolkit() {
         '--json[Output as JSON]' \
         '(-n --network)'{-n,--network}'[Bitcoin network]:network:(mainnet testnet signet)' \
         '--api-url[Custom Mempool instance API root]:url:' \
+        '--timeout[Per-request timeout in seconds]:seconds:' \
+        '--file[Read items from file, one per line]:file:_files' \
         '--help[Show help]'
 }
 _btc_toolkit "$@"

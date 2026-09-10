@@ -10,7 +10,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 [![PyPI](https://img.shields.io/pypi/v/btc-toolkit?label=PyPI&color=F7931A&logo=pypi&logoColor=white)](https://pypi.org/project/btc-toolkit/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero-success)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/devdavidejesus/btc-toolkit/blob/main/LICENSE)
 
 </div>
 
@@ -51,7 +51,7 @@ pip install -e .
 ```
 
 **Shell completion** (optional): static scripts in
-[`completions/`](completions/) for bash and zsh — tab-complete
+[`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash and zsh — tab-complete
 commands, networks and flags, zero dependencies as always.
 
 ## Usage
@@ -225,6 +225,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 
 - **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) are retried up to 3 times with exponential backoff (0.5s, 1s). Definitive errors (400, 404) fail immediately.
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
+- **Bounded waits** — `--timeout` (default 15s) and retries only on transient failures (429/5xx/network), never on 400/404.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
 
 ## Testing
@@ -233,7 +234,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-94 tests, all API calls mocked — the suite runs offline.
+123 tests, all API calls mocked — the suite runs offline.
 
 
 ## How balance is computed
@@ -247,6 +248,33 @@ total       = confirmed + unconfirmed
 ```
 
 This is the same model used by Esplora/Electrs. Don't trust this README — verify against `https://mempool.space/api/address/<address>` yourself.
+
+## Automation
+
+btc-toolkit is built to sit inside pipelines. Every command takes `--json`,
+and the inspecting commands read **one item per line** from stdin (`-`) or a
+file (`--file`), emitting JSON Lines you can pipe straight into `jq`:
+
+```bash
+# many txids -> one JSON object per line
+cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'
+
+# or from a file (blank lines and # comments are ignored)
+btc-toolkit balance --file addresses.txt --json
+```
+
+Configuration through the environment — for Docker, CI, cron:
+
+| Variable | Effect |
+|---|---|
+| `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance) |
+| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`) |
+| `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
+
+Flags always win over environment variables. Exit codes are a contract
+(`0` ok · `1` network/API failure · `2` invalid input) in both text and JSON
+mode; in batch mode the worst code wins. Full output schemas and the
+stability policy: [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
 ## Use your own node
 
@@ -262,6 +290,8 @@ With your own instance, no third party sees your queries — the public
 mempool.space API is the zero-setup default, not a requirement.
 
 ## What this is / What this isn't
+
+The full threat model — what the tool protects against and what it does **not** — lives in [`SECURITY.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md); how releases are built and how to verify one yourself is in [`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md).
 
 **This is** an explorer client for the terminal - a fast, scriptable way to
 inspect the Bitcoin blockchain without running infrastructure. Ideal for
@@ -304,7 +334,7 @@ Found a bug or want to propose or build a new command? Open an [issue](https://g
 
 <div align="center">
 
-Licensed under [MIT](LICENSE) · Built by [@devdavidejesus](https://github.com/devdavidejesus)
+Licensed under [MIT](https://github.com/devdavidejesus/btc-toolkit/blob/main/LICENSE) · Built by [@devdavidejesus](https://github.com/devdavidejesus)
 
 *"Don't Trust, Verify."*
 
