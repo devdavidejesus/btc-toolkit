@@ -337,14 +337,6 @@ btc-toolkit is free, MIT-licensed and has no sponsor. If it's useful to you, you
 
 **Bitcoin:** `bc1qulq8xfcmgxxumjx3yndkfktqgw2exh0rym45sn`
 
-*(Single address, rotated each release. Verify it against this README's git history before sending.)*
-
-## Support
-
-btc-toolkit is free, MIT-licensed and has no sponsor. If it's useful to you, you can support its development on-chain:
-
-**Bitcoin:** `bc1qulq8xfcmgxxumjx3yndkfktqgw2exh0rym45sn`
-
 *(Public address — donations are visible on-chain, as everything here is.)*
 
 ## Contributing
