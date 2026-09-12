@@ -331,6 +331,14 @@ Every txid, address, hex value, and technical claim in this README can be indepe
 - OP_RETURN spec: [learnmeabitcoin.com/technical/script/return](https://learnmeabitcoin.com/technical/script/return/)
 - Esplora API model: [github.com/Blockstream/esplora/blob/master/API.md](https://github.com/Blockstream/esplora/blob/master/API.md)
 
+## Support
+
+btc-toolkit is free, MIT-licensed and has no sponsor. If it's useful to you, you can support its development on-chain:
+
+**Bitcoin:** `bc1qulq8xfcmgxxumjx3yndkfktqgw2exh0rym45sn`
+
+*(Single address, rotated each release. Verify it against this README's git history before sending.)*
+
 ## Contributing
 
 Found a bug or want to propose or build a new command? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution must keep the core rules: stdlib only, tests mocked, claims verifiable on-chain.
