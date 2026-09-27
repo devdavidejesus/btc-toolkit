@@ -321,7 +321,7 @@ and query your own node.
 - [x] **Phase 4** — Block Info Explorer
 - [x] **Phase 5** — UTXO Set Inspector
 
-The original roadmap shipped in v1.0.0; later releases added `tx`, `address`, sovereignty (`--api-url`, signet) and automation (batch mode, env vars). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
 
 ## Don't Trust, Verify
 
