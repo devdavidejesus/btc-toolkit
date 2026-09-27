@@ -4,9 +4,18 @@ All notable changes to btc-toolkit. Format based on [Keep a Changelog](https://k
 versioning follows [SemVer](https://semver.org/). The `--json` output follows the stability policy in
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
-## [Unreleased]
+## [1.6.1] — 2026-09-27
+
+### Fixed
+- A malformed OP_RETURN script in an API response was reported as *invalid input* (exit code 2), blaming the
+  user for bad upstream data. It is now a clean API error (exit code 1). Found by the new fuzzer.
 
 ### Added
+- Coverage-guided fuzzing ([Atheris](https://github.com/google/atheris)) of every parser of untrusted data, on each
+  push and pull request and weekly: `fuzz/fuzz_parsers.py`.
+- GitHub Releases are created by the release workflow, with the files signed by Sigstore (keyless, using the
+  workflow's identity) and the notes taken from this changelog. A tag without a changelog entry cannot be published.
+- A documented policy for supported Python versions: each is dropped in the first minor release after its end of life.
 - CodeQL static analysis (SAST) of the Python package and of the GitHub Actions workflows, on every push and pull request.
 
 ### Changed
@@ -101,6 +110,7 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
+[1.6.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.3.1...v1.4.0

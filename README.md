@@ -38,7 +38,8 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 
 ## Installation
 
-**Requirements:** Python 3.10+
+**Requirements:** Python 3.10+. Supported versions follow CPython's own support window: a Python version is
+dropped in the first minor release after it reaches end of life ([policy](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md#supported-python-versions)).
 
 ```bash
 pip install btc-toolkit
@@ -214,6 +215,7 @@ btc-toolkit/
 │   ├── tx.py             # Transaction inspector
 │   └── address.py        # Address overview + offline type detection
 ├── tests/                # One file per module + test_cli.py — all API calls mocked
+├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
 ├── completions/          # Static bash + zsh completions
 ├── docs/
 │   ├── json-schema.md    # --json output per command + stability policy
@@ -236,7 +238,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
 - **Bounded waits** — `--timeout` (default 15s) and retries only on transient failures (429/5xx/network), never on 400/404.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
-- **Verifiable releases** — published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
+- **Verifiable releases** — published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo, and Sigstore-signed files on every GitHub Release ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
 ## Testing
 
@@ -244,7 +246,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m unittest discover -s tests -t . -v
 ```
 
-149 tests, all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet.
+149 tests, all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
 
 
 ## How balance is computed

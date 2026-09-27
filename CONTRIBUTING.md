@@ -33,7 +33,8 @@ including them is fine.
   tests in `tests/`, written with `unittest`. All API calls are mocked — the
   suite must run offline.
 - **Types and lint are clean:** `mypy --strict btc_toolkit/` and
-  `ruff check btc_toolkit/ tests/` pass.
+  `ruff check btc_toolkit/ tests/ fuzz/ .github/scripts/` pass.
+- **New parsers of untrusted data get a fuzz target** in `fuzz/fuzz_parsers.py`.
 - **The `--json` output is a contract.** Follow the stability policy in
   [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md):
   adding keys is fine; renaming or removing them needs a major version.
@@ -47,8 +48,10 @@ including them is fine.
 ```bash
 python -m unittest discover -s tests -t . -v   # tests — nothing to install
 pip install ruff mypy                            # only for lint and types
-ruff check btc_toolkit/ tests/
+ruff check btc_toolkit/ tests/ fuzz/ .github/scripts/
 mypy --strict btc_toolkit/
+pip install atheris                              # optional: fuzz the parsers
+PYTHONPATH=. python fuzz/fuzz_parsers.py -max_total_time=60
 ```
 
 By contributing, you agree that your contributions are licensed under the

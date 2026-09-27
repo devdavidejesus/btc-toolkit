@@ -8,7 +8,7 @@ human-readable messages from its OP_RETURN outputs.
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_object, NotFoundError, MempoolAPIError  # noqa: F401
+from .api import get_json, as_object, NotFoundError, MempoolAPIError
 
 # OP_RETURN opcode
 OP_RETURN_HEX = "6a"
@@ -54,6 +54,11 @@ def fetch_transaction(txid: str, network: str = "mainnet") -> dict[str, Any]:
         return as_object(get_json(f"/tx/{txid}", network), "/tx")
     except NotFoundError as e:
         raise TransactionNotFoundError(f"Transaction not found: {txid}") from e
+
+
+def _is_hex(s: str) -> bool:
+    """Strict hex check: even length, ASCII hex digits only."""
+    return len(s) % 2 == 0 and all(c in "0123456789abcdefABCDEF" for c in s)
 
 
 def _decode_hex_to_text(hex_data: str) -> str | None:
@@ -112,7 +117,7 @@ def _extract_pushdata(script_after_opreturn: str) -> str | None:
     Handles OP_PUSHBYTES_N (0x01-0x4b), OP_PUSHDATA1 (0x4c),
     OP_PUSHDATA2 (0x4d).
     """
-    if len(script_after_opreturn) < 2:
+    if len(script_after_opreturn) < 2 or not _is_hex(script_after_opreturn):
         return None
 
     data_parts = []
@@ -169,6 +174,8 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
 
         if not hex_data:
             raw_script = vout.get("scriptpubkey", "")
+            if not isinstance(raw_script, str) or not _is_hex(raw_script):
+                raise MempoolAPIError(f"Unexpected response from /tx: output {i} has a malformed scriptpubkey")
             if raw_script.startswith(OP_RETURN_HEX):
                 hex_data = _extract_pushdata(raw_script[2:])
 

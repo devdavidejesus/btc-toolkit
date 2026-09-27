@@ -1,0 +1,32 @@
+name: Fuzz
+
+# Coverage-guided fuzzing (Atheris) of the parsers of untrusted data:
+# OP_RETURN scripts returned by the API, and user input. See fuzz/.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "37 6 * * 4"  # Thursdays, 06:37 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install --require-hashes -r .github/requirements/fuzz.txt
+      - name: Fuzz the parsers for 2 minutes
+        env:
+          PYTHONPATH: ${{ github.workspace }}  # import the package from source; nothing else installed
+        run: python fuzz/fuzz_parsers.py -max_total_time=120 -print_final_stats=1
