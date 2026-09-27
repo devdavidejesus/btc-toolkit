@@ -4,6 +4,16 @@ All notable changes to btc-toolkit. Format based on [Keep a Changelog](https://k
 versioning follows [SemVer](https://semver.org/). The `--json` output follows the stability policy in
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
+## [1.6.2] — 2026-09-27
+
+### Fixed
+- Low-level network failures were not retried: the server closing the connection without a response
+  (`RemoteDisconnected`), a read timeout or a truncated body escaped the retry logic, crashed with a traceback
+  and, in batch mode, aborted the whole batch. Found decoding a real 1,170-transaction batch. They are now
+  retried with backoff like any transient failure, and a batch always processes every item.
+- A response that is not valid JSON or UTF-8 (for example an HTML error page) raised `ValueError`, which the
+  CLI reports as invalid user input (exit code 2). It is now an API error (exit code 1).
+
 ## [1.6.1] — 2026-09-27
 
 ### Fixed
@@ -110,6 +120,7 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
+[1.6.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.4.0...v1.5.0
