@@ -1,13 +1,14 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "btc-toolkit"
-version = "1.4.0"
+version = "1.5.0"
 description = "Bitcoin CLI toolkit — OP_RETURN decoder, balance checker, fee estimator & more. Zero deps, no Bitcoin Core required."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     {name = "Davi de Jesus", email = "devdavidejesus@users.noreply.github.com"},
@@ -17,13 +18,13 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
 ]
@@ -32,6 +33,8 @@ classifiers = [
 Homepage = "https://github.com/devdavidejesus/btc-toolkit"
 Repository = "https://github.com/devdavidejesus/btc-toolkit"
 Issues = "https://github.com/devdavidejesus/btc-toolkit/issues"
+Changelog = "https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md"
+Security = "https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md"
 
 [project.scripts]
 btc-toolkit = "btc_toolkit.cli:run"
@@ -41,3 +44,10 @@ include = ["btc_toolkit*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "SIM"]

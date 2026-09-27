@@ -250,7 +250,7 @@ class TestCliAutomation(unittest.TestCase):
         sys.stdin = io.StringIO(f"{ADDR}\n# comment\n\n{ADDR}\n")
         code, out = _run(["balance", "-", "--json"])
         self.assertEqual(code, 0)
-        lines = [l for l in out.splitlines() if l.strip()]
+        lines = [line for line in out.splitlines() if line.strip()]
         self.assertEqual(len(lines), 2)
         for line in lines:
             self.assertEqual(json.loads(line)["address"], ADDR)
@@ -265,7 +265,7 @@ class TestCliAutomation(unittest.TestCase):
         code, out = _run(["balance", "--json", "--file", path])
         os.unlink(path)
         self.assertEqual(code, 0)
-        self.assertEqual(len([l for l in out.splitlines() if l.strip()]), 3)
+        self.assertEqual(len([line for line in out.splitlines() if line.strip()]), 3)
 
     def test_batch_worst_exit_code_wins(self):
         sys.stdin = io.StringIO("!!!\n")

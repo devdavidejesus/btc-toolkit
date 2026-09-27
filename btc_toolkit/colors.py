@@ -2,12 +2,14 @@
 Shared terminal color helpers.
 
 ANSI colors auto-disable when output is not a TTY (e.g. piped or redirected),
-so JSON and --raw output stay clean.
+so JSON and --raw output stay clean. Setting NO_COLOR to any non-empty value
+disables them everywhere (https://no-color.org).
 """
 
+import os
 import sys
 
-_USE_COLOR = sys.stdout.isatty()
+_USE_COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 
 
 def _c(code: str, text: str) -> str:

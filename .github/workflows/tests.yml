@@ -6,26 +6,74 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
+  # Job id and matrix key are load-bearing: branch protection requires "test (3.10)" … "test (3.13)".
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+      - run: pip install -e . pytest
+      - run: python -m pytest tests/ -v
 
-      - name: Install package
-        run: pip install -e .
+  os-compat:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e . pytest
+      - run: python -m pytest tests/ -v
 
-      - name: Install test dependencies
-        run: pip install pytest
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install build && python -m build
+      - name: Test the wheel as users get it (not the source tree)
+        run: |
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/pip install dist/*.whl
+          expected="btc-toolkit $(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+          test "$(/tmp/wheel-env/bin/btc-toolkit --version)" = "$expected"
+          code=0; /tmp/wheel-env/bin/btc-toolkit tx nope || code=$?; test "$code" -eq 2
+          code=0; /tmp/wheel-env/bin/btc-toolkit tx nope --json || code=$?; test "$code" -eq 2
+      - name: Zero dependencies — the wheel must declare no Requires-Dist
+        run: |
+          python -c "import zipfile, glob, sys; z = zipfile.ZipFile(glob.glob('dist/*.whl')[0]); meta = next(n for n in z.namelist() if n.endswith('/METADATA')); sys.exit('Requires-Dist' in z.read(meta).decode())"
 
-      - name: Run tests
-        run: python -m pytest tests/ -v
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.16.9
+      - run: ruff check btc_toolkit/ tests/
