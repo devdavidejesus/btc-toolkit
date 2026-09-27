@@ -12,7 +12,8 @@ Fee rates are in sat/vB. Endpoints:
 
 from dataclasses import dataclass
 
-from .api import get_json
+from typing import Any
+from .api import get_json, as_object
 
 
 @dataclass
@@ -43,7 +44,7 @@ class FeeEstimate:
         """
         return self.mempool_vsize / 1_000_000
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "fees_sat_vb": {
                 "fastest": self.fastest,
@@ -75,8 +76,8 @@ def get_fees(network: str = "mainnet") -> FeeEstimate:
     Raises:
         MempoolAPIError: On API or connection errors.
     """
-    fees = get_json("/v1/fees/recommended", network)
-    mempool = get_json("/mempool", network)
+    fees = as_object(get_json("/v1/fees/recommended", network), "/v1/fees/recommended")
+    mempool = as_object(get_json("/mempool", network), "/mempool")
 
     return FeeEstimate(
         fastest=fees.get("fastestFee", 0),

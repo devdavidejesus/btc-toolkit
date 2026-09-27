@@ -75,5 +75,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install ruff==0.16.9
+      - run: pip install ruff==0.16.9 mypy==2.3.1
       - run: ruff check btc_toolkit/ tests/
+      - name: Type check (the package ships py.typed, so its types are a promise)
+        run: mypy --strict btc_toolkit/

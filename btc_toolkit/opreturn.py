@@ -7,7 +7,8 @@ human-readable messages from its OP_RETURN outputs.
 
 from dataclasses import dataclass
 
-from .api import get_json, NotFoundError, MempoolAPIError  # noqa: F401
+from typing import Any
+from .api import get_json, as_object, NotFoundError, MempoolAPIError  # noqa: F401
 
 # OP_RETURN opcode
 OP_RETURN_HEX = "6a"
@@ -28,7 +29,7 @@ class OPReturnData:
     raw_bytes: bytes
     size: int
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "txid": self.txid,
             "vout_index": self.vout_index,
@@ -46,11 +47,11 @@ def _validate_txid(txid: str) -> str:
     return txid
 
 
-def fetch_transaction(txid: str, network: str = "mainnet") -> dict:
+def fetch_transaction(txid: str, network: str = "mainnet") -> dict[str, Any]:
     """Fetch full transaction data from the Mempool.space API."""
     txid = _validate_txid(txid)
     try:
-        return get_json(f"/tx/{txid}", network)
+        return as_object(get_json(f"/tx/{txid}", network), "/tx")
     except NotFoundError as e:
         raise TransactionNotFoundError(f"Transaction not found: {txid}") from e
 

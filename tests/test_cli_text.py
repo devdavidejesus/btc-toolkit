@@ -207,3 +207,19 @@ class TestOtherText(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnexpectedShape(unittest.TestCase):
+    """If the API ever returns the wrong JSON shape, the user sees an error, not a traceback."""
+
+    @patch("btc_toolkit.balance.get_json", return_value=["not", "an", "object"])
+    def test_balance_wrong_shape_exits_1_cleanly(self, _):
+        code, out = _run(["balance", ADDR])
+        self.assertEqual(code, 1)
+        self.assertIn("Unexpected response", out)
+
+    @patch("btc_toolkit.utxo.get_json", return_value={"not": "an array"})
+    def test_utxo_wrong_shape_exits_1_cleanly(self, _):
+        code, out = _run(["utxo", ADDR])
+        self.assertEqual(code, 1)
+        self.assertIn("Unexpected response", out)

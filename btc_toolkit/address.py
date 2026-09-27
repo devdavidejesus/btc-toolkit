@@ -14,6 +14,7 @@ following BIP 13 (P2SH), BIP 173 (bech32) and BIP 350 (bech32m).
 
 from dataclasses import dataclass
 
+from typing import Any
 from .balance import get_balance, AddressBalance  # noqa: F401
 
 
@@ -60,7 +61,7 @@ class AddressOverview:
     balance: AddressBalance
     address_type: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "address_type": self.address_type,
             **self.balance.to_dict(),

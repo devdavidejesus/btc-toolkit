@@ -130,3 +130,22 @@ class TestNetworksAndCustomBase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestResponseShape(unittest.TestCase):
+    """An unexpected JSON shape (upstream API drift) must become a clean MempoolAPIError."""
+
+    def test_as_object_accepts_dict(self):
+        from btc_toolkit.api import as_object
+        self.assertEqual(as_object({"a": 1}, "/x"), {"a": 1})
+
+    def test_as_object_rejects_list(self):
+        from btc_toolkit.api import as_object
+        with self.assertRaises(MempoolAPIError) as ctx:
+            as_object([1, 2], "/address")
+        self.assertIn("/address", str(ctx.exception))
+
+    def test_as_array_rejects_dict(self):
+        from btc_toolkit.api import as_array
+        with self.assertRaises(MempoolAPIError):
+            as_array({"error": "x"}, "/address/utxo")

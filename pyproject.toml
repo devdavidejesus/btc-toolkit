@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btc-toolkit"
-version = "1.5.0"
+version = "1.6.0"
 description = "Bitcoin CLI toolkit — OP_RETURN decoder, balance checker, fee estimator & more. Zero deps, no Bitcoin Core required."
 readme = "README.md"
 license = "MIT"
@@ -27,6 +27,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
+    "Typing :: Typed",
 ]
 
 [project.urls]
@@ -42,6 +43,9 @@ btc-toolkit = "btc_toolkit.cli:run"
 [tool.setuptools.packages.find]
 include = ["btc_toolkit*"]
 
+[tool.setuptools.package-data]
+btc_toolkit = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
@@ -51,3 +55,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "UP", "SIM"]
+
+[tool.mypy]
+strict = true
+files = ["btc_toolkit"]

@@ -13,7 +13,8 @@ Endpoints:
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from .api import get_json, get_text, NotFoundError
+from typing import Any
+from .api import get_json, get_text, as_object, NotFoundError
 
 
 class BlockNotFoundError(NotFoundError):
@@ -50,7 +51,7 @@ class BlockInfo:
         """Block size in MB (1 MB = 1_000_000 bytes)."""
         return self.size / 1_000_000
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hash": self.hash,
             "height": self.height,
@@ -118,7 +119,7 @@ def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
                 "Use a height, a 64-char hash, or 'latest'."
             )
 
-        data = get_json(f"/block/{block_hash}", network)
+        data = as_object(get_json(f"/block/{block_hash}", network), "/block")
     except NotFoundError as e:
         raise BlockNotFoundError(f"Block not found: {ref}") from e
 
