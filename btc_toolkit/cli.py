@@ -579,17 +579,15 @@ def _collect_items(args: argparse.Namespace, key: str | None) -> list[str] | Non
         raise ValueError("use '-' as the positional when passing --file")
     if file_path is None and sys.stdin.isatty():
         raise ValueError(f"missing {key}: pass a value, use --file, or pipe items via stdin")
-    source = sys.stdin if file_path is None else open(file_path, encoding="utf-8")
-    try:
-        items = []
-        for line in source:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                items.append(line)
-    finally:
-        if source is not sys.stdin:
-            source.close()
-    return items
+    if file_path is None:
+        return _clean_lines(sys.stdin)
+    with open(file_path, encoding="utf-8") as fh:
+        return _clean_lines(fh)
+
+
+def _clean_lines(lines) -> list[str]:
+    """Strip each line; drop blanks and # comments."""
+    return [s for s in (line.strip() for line in lines) if s and not s.startswith("#")]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -610,7 +608,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_op = subparsers.add_parser(
         "opreturn", help="Decode OP_RETURN messages from a transaction."
     )
-    p_op.add_argument("txid", nargs="?", default="-", help="Bitcoin transaction ID (64-char hex), or - to read from stdin.")
+    p_op.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
     p_op.add_argument(
         "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",
@@ -660,7 +658,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_blk = subparsers.add_parser(
         "block", help="Show block metadata by height, hash, or 'latest'."
     )
-    p_blk.add_argument("ref", nargs="?", default="-", help="Block height, 64-char block hash, or 'latest'. Use - to read from stdin.",
+    p_blk.add_argument("ref", nargs="?", default="-", help="Block height, 64-char hash, or 'latest'; - for stdin.",
     )
     p_blk.add_argument(
         "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
@@ -701,7 +699,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_tx = subparsers.add_parser(
         "tx", help="Inspect a transaction: status, fees, size, I/O, RBF."
     )
-    p_tx.add_argument("txid", nargs="?", default="-", help="Bitcoin transaction ID (64-char hex), or - to read from stdin.")
+    p_tx.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
     p_tx.add_argument(
         "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
         help="Bitcoin network (default: mainnet).",

@@ -58,6 +58,8 @@ The package depends on the Python standard library only. There is no
 
 ## Verifying releases
 
+Releases from 1.5.0 on are built and published by GitHub Actions through PyPI
+Trusted Publishing, with PEP 740 attestations that anyone can verify.
 Every release is a git tag `vX.Y.Z` matching the version in `pyproject.toml`
 and `btc_toolkit/__init__.py`. The published sdist on PyPI is built from that
 tag; you can diff its contents against the repository. See

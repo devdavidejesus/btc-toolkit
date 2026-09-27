@@ -217,6 +217,7 @@ btc-toolkit/
 │   ├── json-schema.md    # --json output per command + stability policy
 │   └── releases.md       # How releases are built and verified
 ├── SECURITY.md           # Threat model + vulnerability reporting
+├── CHANGELOG.md          # Every release, newest first
 ├── pyproject.toml
 ├── LICENSE               # MIT
 └── README.md
@@ -232,6 +233,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
 - **Bounded waits** — `--timeout` (default 15s) and retries only on transient failures (429/5xx/network), never on 400/404.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
+- **Verifiable releases** — published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
 ## Testing
 
@@ -239,7 +241,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-123 tests, all API calls mocked — the suite runs offline.
+144 tests, all API calls mocked — the suite runs offline. A separate weekly job reads known on-chain facts from mainnet.
 
 
 ## How balance is computed
@@ -275,6 +277,7 @@ Configuration through the environment — for Docker, CI, cron:
 | `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance) |
 | `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`) |
 | `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
+| `NO_COLOR` | Any non-empty value disables colors ([no-color.org](https://no-color.org)) |
 
 Flags always win over environment variables. Exit codes are a contract
 (`0` ok · `1` network/API failure · `2` invalid input) in both text and JSON
