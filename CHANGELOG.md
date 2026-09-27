@@ -4,6 +4,11 @@ All notable changes to btc-toolkit. Format based on [Keep a Changelog](https://k
 versioning follows [SemVer](https://semver.org/). The `--json` output follows the stability policy in
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
+## [Unreleased]
+
+### Added
+- CodeQL static analysis (SAST) of the Python package and of the GitHub Actions workflows, on every push and pull request.
+
 ## [1.6.0] — 2026-09-27 — Typed
 
 ### Added
