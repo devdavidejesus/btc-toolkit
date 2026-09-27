@@ -13,6 +13,7 @@ Values are in satoshis. vsize is derived as ceil(weight / 4).
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from typing import Any
 from .opreturn import fetch_transaction, TransactionNotFoundError  # noqa: F401
 
 # Inputs with sequence below this value signal BIP 125 replace-by-fee
@@ -59,7 +60,7 @@ class TxInfo:
             "%Y-%m-%d %H:%M:%S UTC"
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "txid": self.txid,
             "status": "confirmed" if self.confirmed else "unconfirmed",

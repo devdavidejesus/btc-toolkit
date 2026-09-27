@@ -11,6 +11,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero-success)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/devdavidejesus/btc-toolkit/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/devdavidejesus/btc-toolkit/badge)](https://scorecard.dev/viewer/?uri=github.com/devdavidejesus/btc-toolkit)
 
 </div>
 
@@ -215,6 +216,7 @@ btc-toolkit/
 ├── completions/          # Static bash + zsh completions
 ├── docs/
 │   ├── json-schema.md    # --json output per command + stability policy
+│   ├── python-api.md     # Using the toolkit as a typed Python library
 │   └── releases.md       # How releases are built and verified
 ├── SECURITY.md           # Threat model + vulnerability reporting
 ├── CHANGELOG.md          # Every release, newest first
@@ -241,7 +243,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m pytest tests/ -v
 ```
 
-144 tests, all API calls mocked — the suite runs offline. A separate weekly job reads known on-chain facts from mainnet.
+149 tests, all API calls mocked — the suite runs offline. The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet.
 
 
 ## How balance is computed
@@ -283,6 +285,19 @@ Flags always win over environment variables. Exit codes are a contract
 (`0` ok · `1` network/API failure · `2` invalid input) in both text and JSON
 mode; in batch mode the worst code wins. Full output schemas and the
 stability policy: [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
+
+## Use it as a Python library
+
+Every command is also a plain, typed function — the package ships `py.typed`, so your type checker sees real types:
+
+```python
+from btc_toolkit.opreturn import decode_op_return
+
+for out in decode_op_return("c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01866b2b3e69a19"):
+    print(out.decoded_text)   # we are whitehats. contact us on chain
+```
+
+Functions, result types and errors: [`docs/python-api.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/python-api.md).
 
 ## Use your own node
 

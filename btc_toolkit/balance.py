@@ -11,7 +11,8 @@ BTC conversion provided for display.
 
 from dataclasses import dataclass
 
-from .api import get_json, NotFoundError
+from typing import Any
+from .api import get_json, as_object, NotFoundError
 
 SATS_PER_BTC = 100_000_000
 
@@ -47,7 +48,7 @@ class AddressBalance:
         frac = sats % SATS_PER_BTC
         return f"{sign}{whole}.{frac:08d}"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "address": self.address,
             "confirmed": {
@@ -111,7 +112,7 @@ def get_balance(address: str, network: str = "mainnet") -> AddressBalance:
     address = _validate_address(address)
 
     try:
-        data = get_json(f"/address/{address}", network)
+        data = as_object(get_json(f"/address/{address}", network), "/address")
     except NotFoundError as e:
         raise AddressNotFoundError(f"Address not found: {address}") from e
 

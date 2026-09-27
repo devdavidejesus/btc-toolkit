@@ -13,6 +13,7 @@ Run `btc-toolkit <command> --help` for command-specific options.
 """
 
 import argparse
+from collections.abc import Iterable
 import json
 import sys
 
@@ -585,7 +586,7 @@ def _collect_items(args: argparse.Namespace, key: str | None) -> list[str] | Non
         return _clean_lines(fh)
 
 
-def _clean_lines(lines) -> list[str]:
+def _clean_lines(lines: Iterable[str]) -> list[str]:
     """Strip each line; drop blanks and # comments."""
     return [s for s in (line.strip() for line in lines) if s and not s.startswith("#")]
 
@@ -761,7 +762,9 @@ def run(argv: list[str] | None = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 2
     if items is None:
-        return args.func(args)
+        code: int = args.func(args)
+        return code
+    assert key is not None  # items is only a list when a positional key exists
 
     if not items:
         print("Error: no items to process.", file=sys.stderr)

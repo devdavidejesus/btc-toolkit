@@ -13,6 +13,7 @@ No external dependencies — standard library only.
 
 import json
 import time
+from typing import Any
 import urllib.request
 import urllib.error
 
@@ -107,7 +108,8 @@ def _fetch(path: str, network: str) -> bytes:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-                return resp.read()
+                body: bytes = resp.read()
+                return body
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise NotFoundError(f"Not found: {path}") from e
@@ -124,7 +126,7 @@ def _fetch(path: str, network: str) -> bytes:
     raise MempoolAPIError(f"Request failed after {_MAX_ATTEMPTS} attempts")
 
 
-def get_json(path: str, network: str = "mainnet") -> dict | list:
+def get_json(path: str, network: str = "mainnet") -> Any:
     """
     GET a Mempool.space API endpoint and return parsed JSON.
 
@@ -142,3 +144,21 @@ def get_text(path: str, network: str = "mainnet") -> str:
     Used for endpoints like /blocks/tip/height that return a bare number.
     """
     return _fetch(path, network).decode("utf-8").strip()
+
+
+def as_object(data: Any, path: str) -> dict[str, Any]:
+    """
+    Return ``data`` if it is a JSON object. Otherwise raise MempoolAPIError:
+    an unexpected shape means the upstream API changed, and callers should see
+    a clean error instead of an AttributeError traceback.
+    """
+    if not isinstance(data, dict):
+        raise MempoolAPIError(f"Unexpected response from {path}: expected a JSON object, got {type(data).__name__}")
+    return data
+
+
+def as_array(data: Any, path: str) -> list[Any]:
+    """Return ``data`` if it is a JSON array; otherwise raise MempoolAPIError."""
+    if not isinstance(data, list):
+        raise MempoolAPIError(f"Unexpected response from {path}: expected a JSON array, got {type(data).__name__}")
+    return data

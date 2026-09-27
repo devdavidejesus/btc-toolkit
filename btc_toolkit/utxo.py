@@ -14,7 +14,8 @@ Values are in satoshis.
 
 from dataclasses import dataclass
 
-from .api import get_json, NotFoundError
+from typing import Any
+from .api import get_json, as_array, NotFoundError
 from .balance import _validate_address, AddressNotFoundError, SATS_PER_BTC
 
 
@@ -28,7 +29,7 @@ class Utxo:
     confirmed: bool
     block_height: int | None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "txid": self.txid,
             "vout": self.vout,
@@ -64,7 +65,7 @@ class UtxoSet:
         sats = abs(sats)
         return f"{sign}{sats // SATS_PER_BTC}.{sats % SATS_PER_BTC:08d}"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "address": self.address,
             "utxo_count": len(self.utxos),
@@ -102,7 +103,7 @@ def get_utxos(
     address = _validate_address(address)
 
     try:
-        data = get_json(f"/address/{address}/utxo", network)
+        data = as_array(get_json(f"/address/{address}/utxo", network), "/address/utxo")
     except NotFoundError as e:
         raise AddressNotFoundError(f"Address not found: {address}") from e
 

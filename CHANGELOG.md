@@ -4,6 +4,19 @@ All notable changes to btc-toolkit. Format based on [Keep a Changelog](https://k
 versioning follows [SemVer](https://semver.org/). The `--json` output follows the stability policy in
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
+## [1.6.0] — 2026-09-27 — Typed
+
+### Added
+- The package ships `py.typed`: projects using btc-toolkit as a library get real types in their type checker.
+  The whole package passes `mypy --strict`, enforced in CI.
+- `docs/python-api.md`: functions, result types and error hierarchy of the Python API.
+- OpenSSF Scorecard: an independent, signed supply-chain assessment, published weekly, with a README badge.
+- Private vulnerability reporting enabled on the repository (referenced by `SECURITY.md`).
+
+### Fixed
+- An unexpected JSON shape from the API (upstream drift) now raises a clean `MempoolAPIError` — exit code 1 with a
+  readable message — instead of crashing with an `AttributeError` traceback.
+
 ## [1.5.0] — 2026-09-26 — Provenance
 
 ### Added
@@ -75,6 +88,7 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
+[1.6.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.3.0...v1.3.1
