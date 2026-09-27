@@ -149,3 +149,54 @@ class TestResponseShape(unittest.TestCase):
         from btc_toolkit.api import as_array
         with self.assertRaises(MempoolAPIError):
             as_array({"error": "x"}, "/address/utxo")
+
+
+class TestLowLevelNetworkFailures(unittest.TestCase):
+    """Regression tests for a failure seen in real use (a 1,170-transaction batch):
+    the server closed the connection without a response (http.client.RemoteDisconnected).
+    It is neither HTTPError nor URLError, so it bypassed the retry, crashed with a
+    traceback and aborted the whole batch."""
+
+    @patch("btc_toolkit.api.time.sleep")
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_remote_disconnected_is_retried(self, mock_open, mock_sleep):
+        import http.client
+        mock_open.side_effect = [http.client.RemoteDisconnected("closed"), _ok_response()]
+        self.assertEqual(get_json("/x"), {"ok": True})
+        self.assertEqual(mock_open.call_count, 2)
+
+    @patch("btc_toolkit.api.time.sleep")
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_read_timeout_is_retried(self, mock_open, mock_sleep):
+        mock_open.side_effect = [TimeoutError("timed out"), _ok_response()]
+        self.assertEqual(get_json("/x"), {"ok": True})
+
+    @patch("btc_toolkit.api.time.sleep")
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_incomplete_read_is_retried(self, mock_open, mock_sleep):
+        import http.client
+        mock_open.side_effect = [http.client.IncompleteRead(b"par"), _ok_response()]
+        self.assertEqual(get_json("/x"), {"ok": True})
+
+    @patch("btc_toolkit.api.time.sleep")
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_persistent_disconnect_becomes_api_error(self, mock_open, mock_sleep):
+        import http.client
+        mock_open.side_effect = http.client.RemoteDisconnected("closed")
+        with self.assertRaises(MempoolAPIError):
+            get_json("/x")
+        self.assertEqual(mock_open.call_count, 3)
+
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_non_json_body_is_api_error_not_value_error(self, mock_open):
+        # A ValueError would be reported by the CLI as invalid *user input* (exit 2).
+        mock_open.return_value = _ok_response(b"<html>502 Bad Gateway</html>")
+        with self.assertRaises(MempoolAPIError):
+            get_json("/x")
+
+    @patch("btc_toolkit.api.urllib.request.urlopen")
+    def test_non_utf8_body_is_api_error(self, mock_open):
+        from btc_toolkit.api import get_text
+        mock_open.return_value = _ok_response(b"\xff\xfe\x00")
+        with self.assertRaises(MempoolAPIError):
+            get_text("/blocks/tip/height")

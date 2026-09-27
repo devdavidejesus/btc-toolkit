@@ -11,6 +11,7 @@ are never retried.
 No external dependencies — standard library only.
 """
 
+import http.client
 import json
 import time
 from typing import Any
@@ -122,6 +123,14 @@ def _fetch(path: str, network: str) -> bytes:
                 time.sleep(_BACKOFF_BASE * (2 ** attempt))
                 continue
             raise MempoolAPIError(f"Connection error: {e.reason}") from e
+        except (http.client.HTTPException, OSError) as e:
+            # Low-level failures urllib does not wrap in URLError: the server
+            # closing the connection without a response, a read timeout, a
+            # truncated body. Transient by nature, so they are retried too.
+            if not last_attempt:
+                time.sleep(_BACKOFF_BASE * (2 ** attempt))
+                continue
+            raise MempoolAPIError(f"Connection error: {type(e).__name__}: {e}") from e
 
     raise MempoolAPIError(f"Request failed after {_MAX_ATTEMPTS} attempts")
 
@@ -134,7 +143,13 @@ def get_json(path: str, network: str = "mainnet") -> Any:
         NotFoundError: On HTTP 404 (never retried).
         MempoolAPIError: On other HTTP/connection errors after retries.
     """
-    return json.loads(_fetch(path, network).decode("utf-8"))
+    body = _fetch(path, network)
+    try:
+        return json.loads(body.decode("utf-8"))
+    except ValueError as e:  # JSONDecodeError and UnicodeDecodeError are both ValueError
+        # Upstream returned something that is not JSON (e.g. an HTML error page).
+        # A bare ValueError would be reported by the CLI as invalid *user input*.
+        raise MempoolAPIError(f"Invalid JSON response from {path}") from e
 
 
 def get_text(path: str, network: str = "mainnet") -> str:
@@ -143,7 +158,11 @@ def get_text(path: str, network: str = "mainnet") -> str:
 
     Used for endpoints like /blocks/tip/height that return a bare number.
     """
-    return _fetch(path, network).decode("utf-8").strip()
+    body = _fetch(path, network)
+    try:
+        return body.decode("utf-8").strip()
+    except UnicodeDecodeError as e:
+        raise MempoolAPIError(f"Invalid text response from {path}") from e
 
 
 def as_object(data: Any, path: str) -> dict[str, Any]:

@@ -287,3 +287,36 @@ class TestCliAutomation(unittest.TestCase):
     def test_missing_file_exits_2(self):
         code, _ = _run(["tx", "--file", "/nonexistent/txids.txt"])
         self.assertEqual(code, 2)
+
+
+class TestBatchSurvivesNetworkFailure(unittest.TestCase):
+    """One item failing at the network level must not abort the rest of a batch."""
+
+    def test_batch_continues_after_a_failed_item(self):
+        import http.client
+        from unittest.mock import MagicMock, patch as _patch
+        good = {"txid": "b" * 64, "vout": [{"scriptpubkey_type": "op_return",
+                "scriptpubkey_asm": "OP_RETURN OP_PUSHBYTES_2 6869", "scriptpubkey": "6a026869"}]}
+        calls = {"n": 0}
+
+        def fake_urlopen(req, timeout=None):
+            calls["n"] += 1
+            if "a" * 64 in req.full_url:
+                raise http.client.RemoteDisconnected("closed")
+            resp = MagicMock()
+            resp.read.return_value = json.dumps(good).encode()
+            resp.__enter__ = lambda s: s
+            resp.__exit__ = MagicMock(return_value=False)
+            return resp
+
+        buf = io.StringIO()
+        with _patch("btc_toolkit.api.urllib.request.urlopen", side_effect=fake_urlopen), \
+                _patch("btc_toolkit.api.time.sleep"), \
+                _patch("sys.stdin", io.StringIO(f"{'a' * 64}\n{'b' * 64}\n")), \
+                redirect_stdout(buf):
+            code = cli.run(["opreturn", "-", "--json"])
+        lines = [json.loads(x) for x in buf.getvalue().splitlines() if x.strip()]
+        self.assertEqual(code, 1)                  # worst exit wins: the network failure
+        self.assertEqual(len(lines), 2)            # but BOTH items were processed
+        self.assertIn("error", lines[0])
+        self.assertEqual(lines[1]["outputs"][0]["decoded_text"], "hi")
