@@ -69,7 +69,11 @@ a package before installing it.
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security-sensitive reports.
-Email the maintainer at the address on the GitHub profile
-([@devdavidejesus](https://github.com/devdavidejesus)) or use GitHub's
-private vulnerability reporting on this repository if enabled. You will get a
-response within a few days; fixes ship as patch releases with a changelog note.
+Report privately through GitHub:
+[**Report a vulnerability**](https://github.com/devdavidejesus/btc-toolkit/security/advisories/new)
+(the report is visible only to you and the maintainer). If you can't use GitHub,
+email the maintainer at the address on the GitHub profile
+([@devdavidejesus](https://github.com/devdavidejesus)).
+
+You will get an initial response within 14 days — usually much sooner. Fixes
+ship as patch releases, and the release notes identify the fixed issue.

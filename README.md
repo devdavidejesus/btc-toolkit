@@ -240,10 +240,10 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 ## Testing
 
 ```bash
-python -m pytest tests/ -v
+python -m unittest discover -s tests -t . -v
 ```
 
-149 tests, all API calls mocked — the suite runs offline. The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet.
+149 tests, all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet.
 
 
 ## How balance is computed
@@ -359,7 +359,7 @@ btc-toolkit is free, MIT-licensed and has no sponsor. If it's useful to you, you
 
 ## Contributing
 
-Found a bug or want to propose or build a new command? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution must keep the core rules: stdlib only, tests mocked, claims verifiable on-chain.
+Found a bug or want to propose or build a new command? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution keeps the core rules — stdlib only, tests with every change, claims verifiable on-chain. The process and requirements are in [`CONTRIBUTING.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/CONTRIBUTING.md).
 
 ---
 
