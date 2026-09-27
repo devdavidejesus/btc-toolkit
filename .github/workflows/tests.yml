@@ -24,8 +24,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e . pytest
-      - run: python -m pytest tests/ -v
+      - name: Run the suite from source — zero dependencies, nothing to install
+        run: python -m unittest discover -s tests -t . -v
 
   os-compat:
     runs-on: ${{ matrix.os }}
@@ -41,8 +41,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e . pytest
-      - run: python -m pytest tests/ -v
+      - name: Run the suite from source — zero dependencies, nothing to install
+        run: python -m unittest discover -s tests -t . -v
 
   package:
     runs-on: ubuntu-latest
@@ -53,7 +53,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install build && python -m build
+      - run: pip install --require-hashes -r .github/requirements/build.txt
+      - run: python -m build
       - name: Test the wheel as users get it (not the source tree)
         run: |
           python -m venv /tmp/wheel-env
@@ -75,7 +76,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install ruff==0.16.9 mypy==2.3.1
+      - run: pip install --require-hashes -r .github/requirements/lint.txt
       - run: ruff check btc_toolkit/ tests/
       - name: Type check (the package ships py.typed, so its types are a promise)
         run: mypy --strict btc_toolkit/

@@ -9,6 +9,14 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 ### Added
 - CodeQL static analysis (SAST) of the Python package and of the GitHub Actions workflows, on every push and pull request.
 
+### Changed
+- CI runs the test suite with the standard library's `unittest`, straight from the source tree: no package
+  and no test runner are installed. `pytest` still works for contributors who prefer it.
+- The CI tools that are still installed (`build`, `ruff`, `mypy`) are pinned by hash in `.github/requirements/`
+  and installed with `--require-hashes`: a tampered package on PyPI fails the build instead of running in it.
+- `CONTRIBUTING.md` documents the contribution process and requirements, including tests with every change.
+- `SECURITY.md` links the private vulnerability reporting form directly and commits to a 14-day initial response.
+
 ## [1.6.0] — 2026-09-27 — Typed
 
 ### Added

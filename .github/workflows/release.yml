@@ -26,7 +26,8 @@ jobs:
         run: |
           v=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version v$v"; exit 1; }
-      - run: pip install build && python -m build
+      - run: pip install --require-hashes -r .github/requirements/build.txt
+      - run: python -m build
       - name: Smoke-test the built wheel
         run: |
           python -m venv /tmp/wheel-env
