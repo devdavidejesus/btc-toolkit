@@ -32,13 +32,34 @@ PyPI is what's in the repository.
 5. Publishing generates **PEP 740 attestations**: a Sigstore signature binding
    each file on PyPI to this repository, workflow and commit. PyPI shows them on
    the release page ("Verified details").
-6. A GitHub Release with the changelog entry is published for the tag.
+6. The same workflow signs the files with Sigstore (keyless, with the workflow's own
+   identity) and creates the GitHub Release, with the notes taken from `CHANGELOG.md`
+   and the signed files attached. A tag without a CHANGELOG entry fails before
+   anything is published.
 
 A weekly workflow also reads known on-chain facts from mainnet
 ([`live-smoke.yml`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/live-smoke.yml)),
 catching upstream API changes that the mocked test suite cannot see.
 
+## Supported Python versions
+
+btc-toolkit supports every CPython version that is still maintained upstream
+(see [devguide.python.org/versions](https://devguide.python.org/versions/)). When a
+version reaches end of life, it is dropped in the **next minor release**, and the
+change is listed in `CHANGELOG.md`. Existing releases keep working on it; `pip`
+simply stops offering newer ones to that interpreter. Python 3.10 reaches end of
+life in October 2026.
+
 ## How to verify a package yourself
+
+**GitHub Release files** — every file attached to a release (from 1.6.1 on) has a
+Sigstore bundle next to it (`<file>.sigstore.json`):
+
+```bash
+pip install sigstore
+python -m sigstore verify github btc_toolkit-X.Y.Z-py3-none-any.whl \
+  --cert-identity https://github.com/devdavidejesus/btc-toolkit/.github/workflows/release.yml@refs/tags/vX.Y.Z
+```
 
 **Provenance** — confirm a file on PyPI was built by this repository's workflow
 (releases from 1.5.0 on):

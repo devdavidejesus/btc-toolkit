@@ -120,3 +120,36 @@ class TestOPReturnData(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMalformedApiScripts(unittest.TestCase):
+    """Regression tests for an issue found by fuzzing (fuzz/fuzz_parsers.py):
+    a non-hex scriptpubkey from the API used to surface as ValueError, which the
+    CLI reports as *invalid user input* (exit 2)."""
+
+    def test_extract_pushdata_never_raises_on_non_hex(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        for bad in ("\x7f5", "+f04abcd", "zz", "6a 04", "٠١"):
+            with self.subTest(bad=bad):
+                self.assertIsNone(_extract_pushdata(bad))
+
+    def test_malformed_scriptpubkey_is_an_api_error(self):
+        from btc_toolkit.api import MempoolAPIError
+        from btc_toolkit.opreturn import decode_op_return
+        vout = {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "", "scriptpubkey": "6a\x7f5"}
+        with patch("btc_toolkit.opreturn.fetch_transaction", return_value={"vout": [vout]}), \
+                self.assertRaises(MempoolAPIError) as ctx:
+            decode_op_return("0" * 64)
+        self.assertIn("malformed scriptpubkey", str(ctx.exception))
+
+    def test_cli_reports_it_as_api_error_exit_1(self):
+        import io
+        from contextlib import redirect_stdout
+        from btc_toolkit import cli
+        vout = {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "", "scriptpubkey": "6azz"}
+        with patch("btc_toolkit.opreturn.fetch_transaction", return_value={"vout": [vout]}):
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = cli.run(["opreturn", "0" * 64])
+        self.assertEqual(code, 1)
+        self.assertIn("malformed scriptpubkey", buf.getvalue())

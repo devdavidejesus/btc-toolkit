@@ -77,6 +77,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install --require-hashes -r .github/requirements/lint.txt
-      - run: ruff check btc_toolkit/ tests/
+      - run: ruff check btc_toolkit/ tests/ fuzz/ .github/scripts/
       - name: Type check (the package ships py.typed, so its types are a promise)
         run: mypy --strict btc_toolkit/
