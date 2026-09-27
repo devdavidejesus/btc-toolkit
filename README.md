@@ -246,7 +246,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 python -m unittest discover -s tests -t . -v
 ```
 
-149 tests, all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
+Every command is tested with all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
 
 
 ## How balance is computed
