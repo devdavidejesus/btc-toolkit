@@ -20,7 +20,7 @@ PyPI is what's in the repository.
 
 1. Changes land on `main` through a pull request. `main` is protected: the test
    matrix must be green and admins cannot bypass it. CI runs the suite on
-   Python 3.10–3.14 (plus macOS and Windows), installs and tests the **built
+   Python 3.11–3.14 (plus macOS and Windows), installs and tests the **built
    wheel**, verifies it declares zero dependencies, and lints.
 2. The maintainer pushes a tag `vX.Y.Z` on the merge commit.
 3. The [`release`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/release.yml)
@@ -48,7 +48,7 @@ btc-toolkit supports every CPython version that is still maintained upstream
 version reaches end of life, it is dropped in the **next minor release**, and the
 change is listed in `CHANGELOG.md`. Existing releases keep working on it; `pip`
 simply stops offering newer ones to that interpreter. Python 3.10 reached end of
-life on 2026-10-01, so the next minor release drops it.
+life on 2026-10-01 and was dropped in 1.7.0.
 
 ## How to verify a package yourself
 

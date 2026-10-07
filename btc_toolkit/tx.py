@@ -11,7 +11,7 @@ Values are in satoshis. vsize is derived as ceil(weight / 4).
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from typing import Any
 from .opreturn import fetch_transaction, TransactionNotFoundError  # noqa: F401
@@ -56,7 +56,7 @@ class TxInfo:
     def block_time_utc(self) -> str | None:
         if self.block_time is None:
             return None
-        return datetime.fromtimestamp(self.block_time, tz=timezone.utc).strftime(
+        return datetime.fromtimestamp(self.block_time, tz=UTC).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
 
