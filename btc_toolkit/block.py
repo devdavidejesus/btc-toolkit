@@ -11,7 +11,7 @@ Endpoints:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from typing import Any
 from .api import get_json, get_text, as_object, NotFoundError
@@ -42,7 +42,7 @@ class BlockInfo:
     @property
     def timestamp_utc(self) -> str:
         """Block timestamp as an ISO-8601 UTC string."""
-        return datetime.fromtimestamp(self.timestamp, tz=timezone.utc).strftime(
+        return datetime.fromtimestamp(self.timestamp, tz=UTC).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
 

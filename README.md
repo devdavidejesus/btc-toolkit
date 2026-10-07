@@ -8,7 +8,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 
 [![Tests](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/btc-toolkit?label=PyPI&color=F7931A&logo=pypi&logoColor=white)](https://pypi.org/project/btc-toolkit/)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero-success)](https://github.com/devdavidejesus/btc-toolkit/blob/main/pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/devdavidejesus/btc-toolkit/blob/main/LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/devdavidejesus/btc-toolkit/badge)](https://scorecard.dev/viewer/?uri=github.com/devdavidejesus/btc-toolkit)
@@ -38,7 +38,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 
 ## Installation
 
-**Requirements:** Python 3.10+. Supported versions follow CPython's own support window: a Python version is
+**Requirements:** Python 3.11+. Supported versions follow CPython's own support window: a Python version is
 dropped in the first minor release after it reaches end of life ([policy](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md#supported-python-versions)).
 
 ```bash

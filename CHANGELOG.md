@@ -6,6 +6,12 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-10-07
+
+### Removed
+- Python 3.10, which reached end of life on 2026-10-01, following the documented support policy. btc-toolkit now
+  requires Python 3.11 or newer. 1.6.2 keeps working on 3.10, and `pip` on 3.10 keeps installing it.
+
 ### Added
 - CI measures line and branch coverage on every pull request (coverage.py, pinned by hash) and fails below 90%.
 - Tests for the OP_RETURN parser edge cases that coverage showed untested, including `OP_PUSHDATA2` — the path
@@ -127,7 +133,8 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
-[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.5.0...v1.6.0
