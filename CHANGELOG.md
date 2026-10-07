@@ -127,6 +127,7 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.2...HEAD
 [1.6.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.5.0...v1.6.0
