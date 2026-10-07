@@ -31,7 +31,9 @@ including them is fine.
   that adds one will not be merged.
 - **Tests come with the change.** New functionality and bug fixes must include
   tests in `tests/`, written with `unittest`. All API calls are mocked — the
-  suite must run offline.
+  suite must run offline. CI measures line and branch coverage on every pull
+  request and fails below 90% (`python -m coverage run -m unittest discover -s tests -t .`
+  then `python -m coverage report`).
 - **Types and lint are clean:** `mypy --strict btc_toolkit/` and
   `ruff check btc_toolkit/ tests/ fuzz/ .github/scripts/` pass.
 - **New parsers of untrusted data get a fuzz target** in `fuzz/fuzz_parsers.py`.

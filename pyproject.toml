@@ -59,3 +59,13 @@ select = ["E", "F", "W", "B", "UP", "SIM"]
 [tool.mypy]
 strict = true
 files = ["btc_toolkit"]
+
+[tool.coverage.run]
+branch = true
+source = ["btc_toolkit"]
+omit = ["btc_toolkit/__main__.py"]  # 3-line entry point
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
