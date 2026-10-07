@@ -154,7 +154,7 @@ btc-toolkit utxo bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
 
 Lists every UTXO sorted by value (largest first), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
 
-> **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, ~76k donation outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
+> **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, which has received over 80,000 outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
 
 ```bash
 # Only confirmed UTXOs

@@ -47,8 +47,8 @@ btc-toolkit supports every CPython version that is still maintained upstream
 (see [devguide.python.org/versions](https://devguide.python.org/versions/)). When a
 version reaches end of life, it is dropped in the **next minor release**, and the
 change is listed in `CHANGELOG.md`. Existing releases keep working on it; `pip`
-simply stops offering newer ones to that interpreter. Python 3.10 reaches end of
-life in October 2026.
+simply stops offering newer ones to that interpreter. Python 3.10 reached end of
+life on 2026-10-01, so the next minor release drops it.
 
 ## How to verify a package yourself
 
