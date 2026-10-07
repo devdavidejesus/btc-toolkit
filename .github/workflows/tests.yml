@@ -67,6 +67,21 @@ jobs:
         run: |
           python -c "import zipfile, glob, sys; z = zipfile.ZipFile(glob.glob('dist/*.whl')[0]); meta = next(n for n in z.namelist() if n.endswith('/METADATA')); sys.exit('Requires-Dist' in z.read(meta).decode())"
 
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install --require-hashes -r .github/requirements/coverage.txt
+      - name: Line and branch coverage; fails below the floor in pyproject.toml
+        run: |
+          python -m coverage run -m unittest discover -s tests -t .
+          python -m coverage report
+
   lint:
     runs-on: ubuntu-latest
     steps:

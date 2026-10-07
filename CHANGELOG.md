@@ -4,6 +4,13 @@ All notable changes to btc-toolkit. Format based on [Keep a Changelog](https://k
 versioning follows [SemVer](https://semver.org/). The `--json` output follows the stability policy in
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
+## [Unreleased]
+
+### Added
+- CI measures line and branch coverage on every pull request (coverage.py, pinned by hash) and fails below 90%.
+- Tests for the OP_RETURN parser edge cases that coverage showed untested, including `OP_PUSHDATA2` — the path
+  that decodes messages larger than 255 bytes. `opreturn.py` coverage went from 83% to 99%.
+
 ## [1.6.2] — 2026-09-27
 
 ### Fixed

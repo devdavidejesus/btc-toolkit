@@ -153,3 +153,68 @@ class TestMalformedApiScripts(unittest.TestCase):
                 code = cli.run(["opreturn", "0" * 64])
         self.assertEqual(code, 1)
         self.assertIn("malformed scriptpubkey", buf.getvalue())
+
+
+class TestScriptParsingEdges(unittest.TestCase):
+    """Edge cases of the script parsers, found uncovered by branch coverage."""
+
+    def test_pushdata2_large_message(self):
+        # OP_PUSHDATA2 (0x4d) + little-endian length: the path that decoded the
+        # 6,458-byte message on mainnet, previously without a test.
+        from btc_toolkit.opreturn import _extract_pushdata
+        msg = b"x" * 600
+        script = "4d" + (600).to_bytes(2, "little").hex() + msg.hex()
+        self.assertEqual(_extract_pushdata(script), msg.hex())
+
+    def test_pushdata2_truncated_length(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertIsNone(_extract_pushdata("4d58"))
+
+    def test_pushdata1_truncated_length(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertIsNone(_extract_pushdata("4c"))
+
+    def test_unknown_opcode_stops_parsing(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertIsNone(_extract_pushdata("4e0000"))   # OP_PUSHDATA4 is not supported
+        self.assertEqual(_extract_pushdata("02aabb00cc"), "aabb")  # parsed data is kept
+
+    def test_declared_length_longer_than_data(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertIsNone(_extract_pushdata("05aabb"))
+
+    def test_odd_trailing_nibble_is_ignored(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertIsNone(_extract_pushdata("02aab"))  # odd length: not strict hex
+
+    def test_asm_skips_non_hex_tokens(self):
+        from btc_toolkit.opreturn import _parse_scriptpubkey_asm
+        self.assertEqual(_parse_scriptpubkey_asm("OP_RETURN zz 6869"), "6869")
+        self.assertIsNone(_parse_scriptpubkey_asm("OP_RETURN zz"))
+
+    def test_mostly_binary_payload_is_not_text(self):
+        from btc_toolkit.opreturn import _decode_hex_to_text
+        self.assertIsNone(_decode_hex_to_text("01" * 9 + "41"))  # 9 control chars, 1 "A"
+
+
+class TestDecodeEdges(unittest.TestCase):
+    def test_not_found_maps_to_transaction_not_found(self):
+        from btc_toolkit.api import NotFoundError
+        from btc_toolkit.opreturn import TransactionNotFoundError, fetch_transaction
+        with patch("btc_toolkit.opreturn.get_json", side_effect=NotFoundError("404")), \
+                self.assertRaises(TransactionNotFoundError):
+            fetch_transaction("0" * 64)
+
+    def test_op_return_without_payload_is_skipped(self):
+        # "OP_RETURN" alone, and a raw script that does not start with 0x6a:
+        # both yield no payload, and decoding continues to the next output.
+        from btc_toolkit.opreturn import decode_op_return
+        tx = {"vout": [
+            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN", "scriptpubkey": "6a"},
+            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "", "scriptpubkey": "51"},
+            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN OP_PUSHBYTES_2 6869",
+             "scriptpubkey": "6a026869"},
+        ]}
+        with patch("btc_toolkit.opreturn.fetch_transaction", return_value=tx):
+            out = decode_op_return("0" * 64)
+        self.assertEqual([(o.vout_index, o.decoded_text) for o in out], [(2, "hi")])
