@@ -234,11 +234,11 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 
 ## Reliability
 
-- **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) are retried up to 3 times with exponential backoff (0.5s, 1s). Definitive errors (400, 404) fail immediately.
+- **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Definitive errors (400, 404) fail immediately.
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
-- **Bounded waits** — `--timeout` (default 15s) and retries only on transient failures (429/5xx/network), never on 400/404.
+- **Bounded waits** — `--timeout` (default 15s) applies to each attempt.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
-- **Verifiable releases** — published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo, and Sigstore-signed files on every GitHub Release ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
+- **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
 ## Testing
 
@@ -247,7 +247,6 @@ python -m unittest discover -s tests -t . -v
 ```
 
 Every command is tested with all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). Every pull request measures line and branch coverage and fails if it drops below 90%. The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
-
 
 ## How balance is computed
 
@@ -319,14 +318,14 @@ mempool.space API is the zero-setup default, not a requirement.
 
 The full threat model — what the tool protects against and what it does **not** — lives in [`SECURITY.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md); how releases are built and how to verify one yourself is in [`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md).
 
-**This is** an explorer client for the terminal - a fast, scriptable way to
+**This is** an explorer client for the terminal — a fast, scriptable way to
 inspect the Bitcoin blockchain without running infrastructure. Ideal for
 learning, scripting, quick lookups, and teaching how Bitcoin data is
 structured.
 
 **This isn't** a substitute for a full node. All data comes from the
 Mempool.space API: this tool does not validate blocks, verify merkle proofs,
-or check consensus rules. You are trusting the API's view of the chain -
+or check consensus rules. You are trusting the API's view of the chain —
 that's the explicit trade-off for requiring zero infrastructure. For
 sovereign, trustless verification, run [Bitcoin Core](https://bitcoincore.org)
 and query your own node.
