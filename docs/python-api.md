@@ -19,7 +19,8 @@ for out in decode_op_return(tx.txid):
     print(out.size, out.decoded_text)             # 37  we are whitehats. contact us on chain
 ```
 
-Every function takes an optional `network` (`"mainnet"`, `"testnet"`, `"signet"`).
+Every function takes an optional `network` (`"mainnet"`, `"testnet"`, `"signet"`). `detect_address_type`
+also accepts `"custom"` — the CLI's network for `--api-url` — and then recognises every network's prefixes.
 All amounts are **integer satoshis**.
 
 ## Functions

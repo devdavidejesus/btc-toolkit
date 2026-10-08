@@ -12,7 +12,7 @@ BTC conversion provided for display.
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_object, NotFoundError
+from .api import get_json, as_object, field_int, field_object, field_str, NotFoundError
 
 SATS_PER_BTC = 100_000_000
 
@@ -116,18 +116,19 @@ def get_balance(address: str, network: str = "mainnet") -> AddressBalance:
     except NotFoundError as e:
         raise AddressNotFoundError(f"Address not found: {address}") from e
 
-    chain = data.get("chain_stats", {})
-    mempool = data.get("mempool_stats", {})
-
-    confirmed = chain.get("funded_txo_sum", 0) - chain.get("spent_txo_sum", 0)
-    unconfirmed = mempool.get("funded_txo_sum", 0) - mempool.get("spent_txo_sum", 0)
+    path = "/address"
+    chain = field_object(data, "chain_stats", path)
+    mempool = field_object(data, "mempool_stats", path)
+    funded = field_int(chain, "funded_txo_sum", path)
+    spent = field_int(chain, "spent_txo_sum", path)
+    unconfirmed = field_int(mempool, "funded_txo_sum", path) - field_int(mempool, "spent_txo_sum", path)
 
     return AddressBalance(
-        address=data.get("address", address),
-        confirmed_sats=confirmed,
+        address=field_str(data, "address", path, default=address),
+        confirmed_sats=funded - spent,
         unconfirmed_sats=unconfirmed,
-        confirmed_tx_count=chain.get("tx_count", 0),
-        mempool_tx_count=mempool.get("tx_count", 0),
-        funded_sats=chain.get("funded_txo_sum", 0),
-        spent_sats=chain.get("spent_txo_sum", 0),
+        confirmed_tx_count=field_int(chain, "tx_count", path),
+        mempool_tx_count=field_int(mempool, "tx_count", path),
+        funded_sats=funded,
+        spent_sats=spent,
     )

@@ -13,6 +13,7 @@ No external dependencies — standard library only.
 
 import http.client
 import json
+import math
 import time
 from typing import Any
 import urllib.request
@@ -33,6 +34,7 @@ _custom_api_base: str | None = None
 
 _USER_AGENT = f"btc-toolkit/{__version__}"
 DEFAULT_TIMEOUT = 15
+MAX_TIMEOUT = 86_400  # one day; the socket layer overflows near 1e10 seconds
 _TIMEOUT: float = DEFAULT_TIMEOUT
 
 # Retry policy — transient failures only
@@ -55,8 +57,8 @@ def set_timeout(seconds: float | None) -> None:
     if seconds is None:
         _TIMEOUT = DEFAULT_TIMEOUT
         return
-    if seconds <= 0:
-        raise ValueError("timeout must be positive")
+    if not math.isfinite(seconds) or not 0 < seconds <= MAX_TIMEOUT:
+        raise ValueError(f"timeout must be more than 0 and at most {MAX_TIMEOUT} seconds")
     _TIMEOUT = float(seconds)
 
 
@@ -181,3 +183,94 @@ def as_array(data: Any, path: str) -> list[Any]:
     if not isinstance(data, list):
         raise MempoolAPIError(f"Unexpected response from {path}: expected a JSON array, got {type(data).__name__}")
     return data
+
+
+# ── Field accessors for API objects ─────────────────────────────────────
+# The API is untrusted input. Every field a module reads goes through one of
+# these, so a wrong type anywhere in a response (null, a string instead of a
+# number, a list of strings instead of objects) is a clean MempoolAPIError —
+# exit code 1 — instead of a traceback. A missing field takes the default.
+
+# Every integer in a Bitcoin API response (satoshis, sizes, heights, counts)
+# fits in 64 bits; anything larger is garbage and would overflow float math.
+_INT_LIMIT = 2**63
+
+
+def _unexpected(path: str, key: str, expected: str) -> MempoolAPIError:
+    return MempoolAPIError(f"Unexpected response from {path}: '{key}' is not {expected}")
+
+
+def field_object(obj: dict[str, Any], key: str, path: str) -> dict[str, Any]:
+    value = obj.get(key, {})
+    if not isinstance(value, dict):
+        raise _unexpected(path, key, "an object")
+    return value
+
+
+def field_objects(obj: dict[str, Any], key: str, path: str) -> list[dict[str, Any]]:
+    value = obj.get(key, [])
+    if not isinstance(value, list) or not all(isinstance(v, dict) for v in value):
+        raise _unexpected(path, key, "a list of objects")
+    return value
+
+
+def field_int(obj: dict[str, Any], key: str, path: str, default: int = 0) -> int:
+    value = obj.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or abs(value) >= _INT_LIMIT:
+        raise _unexpected(path, key, "an integer")
+    return value
+
+
+def field_opt_int(obj: dict[str, Any], key: str, path: str) -> int | None:
+    value = obj.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or abs(value) >= _INT_LIMIT:
+        raise _unexpected(path, key, "an integer")
+    return value
+
+
+def field_number(obj: dict[str, Any], key: str, path: str, default: float = 0) -> float:
+    value = obj.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise _unexpected(path, key, "a number")
+    if isinstance(value, int) and abs(value) >= _INT_LIMIT or isinstance(value, float) and not math.isfinite(value):
+        raise _unexpected(path, key, "a number")
+    return value
+
+
+def field_bool(obj: dict[str, Any], key: str, path: str, default: bool = False) -> bool:
+    value = obj.get(key, default)
+    if not isinstance(value, bool):
+        raise _unexpected(path, key, "a boolean")
+    return value
+
+
+def field_str(obj: dict[str, Any], key: str, path: str, default: str = "") -> str:
+    value = obj.get(key, default)
+    if not isinstance(value, str):
+        raise _unexpected(path, key, "a string")
+    return value
+
+
+def field_opt_str(obj: dict[str, Any], key: str, path: str) -> str | None:
+    value = obj.get(key)
+    if value is not None and not isinstance(value, str):
+        raise _unexpected(path, key, "a string")
+    return value
+
+
+def _check_timestamp(value: int, key: str, path: str) -> int:
+    # A Unix time in a Bitcoin block header or tx status is an unsigned 32-bit integer.
+    if not 0 <= value <= 0xFFFFFFFF:
+        raise _unexpected(path, key, "a valid timestamp")
+    return value
+
+
+def field_timestamp(obj: dict[str, Any], key: str, path: str) -> int:
+    return _check_timestamp(field_int(obj, key, path), key, path)
+
+
+def field_opt_timestamp(obj: dict[str, Any], key: str, path: str) -> int | None:
+    value = field_opt_int(obj, key, path)
+    return None if value is None else _check_timestamp(value, key, path)

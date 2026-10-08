@@ -285,7 +285,7 @@ Configuration through the environment — for Docker, CI, cron:
 | Variable | Effect |
 |---|---|
 | `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance) |
-| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`) |
+| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`; anything else is an error, exit 2) |
 | `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
 | `NO_COLOR` | Any non-empty value disables colors ([no-color.org](https://no-color.org)) |
 

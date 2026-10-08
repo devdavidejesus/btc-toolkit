@@ -87,5 +87,32 @@ class TestGetAddressOverview(unittest.TestCase):
             get_address_overview("")
 
 
+
+class TestDetectAddressTypeNetworks(unittest.TestCase):
+    """Signet shares testnet's prefixes; custom APIs accept every network; Taproot needs a 32-byte key."""
+
+    TB1Q = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"                          # BIP 173 test vector
+    TB1P = "tb1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c"      # BIP 350 test vector
+    BC1P = "bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297"      # BIP 86 test vector
+
+    def test_signet(self):
+        self.assertEqual(detect_address_type(self.TB1Q, "signet"), "P2WPKH")
+        self.assertEqual(detect_address_type(self.TB1P, "signet"), "P2TR")
+        self.assertEqual(detect_address_type("mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn", "signet"), "P2PKH")
+        self.assertEqual(detect_address_type("2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc", "signet"), "P2SH")
+
+    def test_wrong_network_is_unknown(self):
+        self.assertEqual(detect_address_type(self.TB1Q, "mainnet"), "unknown")
+        self.assertEqual(detect_address_type("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "signet"), "unknown")
+
+    def test_custom_api_accepts_every_network(self):
+        self.assertEqual(detect_address_type("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "custom"), "P2PKH")
+        self.assertEqual(detect_address_type(self.TB1Q, "custom"), "P2WPKH")
+        self.assertEqual(detect_address_type("bcrt1qs758ursh4q9z627kt3pp5yysm78ddny6txaqgw", "custom"), "P2WPKH")
+
+    def test_taproot_length(self):
+        self.assertEqual(detect_address_type(self.BC1P), "P2TR")
+        self.assertEqual(detect_address_type("bc1p" + "q" * 38), "unknown")  # 20-byte v1 program: not Taproot
+
 if __name__ == "__main__":
     unittest.main()

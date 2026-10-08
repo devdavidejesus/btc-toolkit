@@ -18,6 +18,7 @@ import argparse
 from collections.abc import Iterable
 import json
 import sys
+import unicodedata
 
 from . import __version__
 from . import colors as c
@@ -40,6 +41,42 @@ BANNER = r"""
  |___/ |_| \___|   |_| \___/ \___/|____|_|\_\___| |_|
 """
 
+_EXPLORER = {
+    "mainnet": "https://mempool.space",
+    "testnet": "https://mempool.space/testnet",
+    "signet": "https://mempool.space/signet",
+}
+
+# Bidirectional-text controls can reorder what a terminal shows ("Trojan Source").
+_BIDI_CONTROLS = {"\u061c", "\u200e", "\u200f", *map(chr, range(0x202A, 0x202F)), *map(chr, range(0x2066, 0x206A))}
+
+
+def _explorer_url(network: str, kind: str, ident: str) -> str | None:
+    """mempool.space link for the network; None for a custom API (its explorer is unknown)."""
+    base = _EXPLORER.get(network)
+    return f"{base}/{kind}/{ident}" if base else None
+
+
+def _print_link(network: str, kind: str, ident: str, prefix: str = "") -> None:
+    url = _explorer_url(network, kind, ident)
+    if url:
+        print(f"  {prefix}{c.dim(url) if not prefix else url}" + ("" if prefix else "\n"))
+
+
+def _terminal_safe(text: str) -> str:
+    """
+    Escape control characters before printing on-chain text to a terminal.
+
+    Anyone can write an OP_RETURN. Without this, a message could carry ANSI/OSC
+    escape sequences (rewrite the screen, the window title, links) or bidi
+    controls that reorder what is displayed. They are shown escaped (\\x1b).
+    """
+    return "".join(
+        ch.encode("unicode_escape").decode("ascii")
+        if unicodedata.category(ch) == "Cc" or ch in _BIDI_CONTROLS else ch
+        for ch in text
+    )
+
 
 # ──────────────────────────────────────────────────────────────────────
 # opreturn subcommand
@@ -48,6 +85,8 @@ BANNER = r"""
 def _cmd_opreturn(args: argparse.Namespace) -> int:
     if args.json_output:
         return _opreturn_json(args)
+    if args.raw:
+        return _opreturn_raw(args)
 
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · opreturn · Mempool.space API\n"))
@@ -61,7 +100,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
         results = decode_op_return(args.txid, args.network)
     except TransactionNotFoundError:
         print(f"  {c.red('✗')} Transaction not found.\n")
-        print(f"  Verify: https://mempool.space/tx/{args.txid}")
+        _print_link(args.network, "tx", args.txid, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
         print(f"  {c.red('✗')} API error: {e}\n")
@@ -77,21 +116,34 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     print(f"  {c.green('✓')} Found {len(results)} OP_RETURN output(s):\n")
 
     for r in results:
-        if args.raw:
-            print(r.raw_hex)
-            continue
-
         print(f"  {c.bold(f'Output #{r.vout_index}')}")
         print(f"  ├─ Size:     {r.size} bytes")
         hex_preview = r.raw_hex[:64] + ("…" if len(r.raw_hex) > 64 else "")
-        print(f"  ├─ Hex:      {c.dim(hex_preview)}")
+        print(f"  ├─ Hex:      {c.dim(hex_preview or '(empty)')}")
         if r.decoded_text:
-            print(f"  └─ Message:  {c.green(r.decoded_text)}")
+            print(f"  └─ Message:  {c.green(_terminal_safe(r.decoded_text))}")
+        elif r.size == 0:
+            print(f"  └─ Message:  {c.dim('(no data)')}")
         else:
             print(f"  └─ Message:  {c.dim('(binary data — not UTF-8 text)')}")
         print()
 
-    print(f"  {c.dim(f'https://mempool.space/tx/{args.txid}')}\n")
+    _print_link(args.network, "tx", args.txid)
+    return 0
+
+
+def _opreturn_raw(args: argparse.Namespace) -> int:
+    """--raw: only the payload hex, one line per OP_RETURN output; errors on stderr."""
+    try:
+        results = decode_op_return(args.txid, args.network)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    except MempoolAPIError as e:  # includes TransactionNotFoundError
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    for r in results:
+        print(r.raw_hex)
     return 0
 
 
@@ -137,7 +189,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
         bal = get_balance(args.address, args.network)
     except AddressNotFoundError:
         print(f"  {c.red('✗')} Address not found.\n")
-        print(f"  Verify: https://mempool.space/address/{args.address}")
+        _print_link(args.network, "address", args.address, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
         print(f"  {c.red('✗')} API error: {e}\n")
@@ -163,7 +215,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
     txs_line = f"Confirmed txs: {bal.confirmed_tx_count}  ·  Mempool txs: {bal.mempool_tx_count}"
     print(f"  {c.dim(txs_line)}")
     print()
-    print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
+    _print_link(args.network, "address", args.address)
     return 0
 
 
@@ -214,7 +266,8 @@ def _cmd_fees(args: argparse.Namespace) -> int:
     print(f"  ├─ Size:         {est.mempool_vsize_mb:.2f} vMB")
     print(f"  └─ ~Blocks to clear: {est.blocks_to_clear:.1f}")
     print()
-    print(f"  {c.dim('https://mempool.space')}\n")
+    if args.network in _EXPLORER:
+        print(f"  {c.dim(_EXPLORER[args.network])}\n")
     return 0
 
 
@@ -273,7 +326,7 @@ def _cmd_block(args: argparse.Namespace) -> int:
     print(f"  ├─ Nonce:       {blk.nonce}")
     print(f"  └─ Previous:    {prev_short}")
     print()
-    print(f"  {c.dim(f'https://mempool.space/block/{blk.hash}')}\n")
+    _print_link(args.network, "block", blk.hash)
     return 0
 
 
@@ -350,7 +403,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
         _dim_line = f"Confirmed: {us.confirmed_count}  ·  Mempool: {us.unconfirmed_count}"
         print(f"  {c.dim(_dim_line)}")
         print()
-    print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
+    _print_link(args.network, "address", args.address)
     return 0
 
 
@@ -435,7 +488,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     print(f"  ├─ Version:    {tx.version}")
     print(f"  └─ Locktime:   {tx.locktime}")
     print()
-    print(f"  {c.dim(f'https://mempool.space/tx/{args.txid}')}\n")
+    _print_link(args.network, "tx", args.txid)
     return 0
 
 
@@ -498,7 +551,7 @@ def _cmd_address(args: argparse.Namespace) -> int:
     print(f"  ├─ Confirmed txs: {bal.confirmed_tx_count:,}")
     print(f"  └─ Mempool txs:   {bal.mempool_tx_count}")
     print()
-    print(f"  {c.dim(f'https://mempool.space/address/{args.address}')}\n")
+    _print_link(args.network, "address", args.address)
     return 0
 
 
@@ -533,10 +586,14 @@ def _indent() -> int | None:
     return None if _BATCH else 2
 
 
-def _default_network() -> str:
-    """Network default: $BTC_TOOLKIT_NETWORK when valid, else mainnet."""
-    env = os.environ.get(ENV_NETWORK, "").strip().lower()
-    return env if env in SUPPORTED_NETWORKS else "mainnet"
+def _positive_int(value: str) -> int:
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid int value: {value!r}") from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return n
 
 
 def _add_common_flags(parser: argparse.ArgumentParser, batch: bool = False) -> None:
@@ -584,13 +641,13 @@ def _collect_items(args: argparse.Namespace, key: str | None) -> list[str] | Non
         raise ValueError(f"missing {key}: pass a value, use --file, or pipe items via stdin")
     if file_path is None:
         return _clean_lines(sys.stdin)
-    with open(file_path, encoding="utf-8") as fh:
+    with open(file_path, encoding="utf-8-sig") as fh:  # -sig: tolerate a BOM (Windows Notepad)
         return _clean_lines(fh)
 
 
 def _clean_lines(lines: Iterable[str]) -> list[str]:
-    """Strip each line; drop blanks and # comments."""
-    return [s for s in (line.strip() for line in lines) if s and not s.startswith("#")]
+    """Strip each line (and any byte-order mark); drop blanks and # comments."""
+    return [s for s in (line.replace("\ufeff", "").strip() for line in lines) if s and not s.startswith("#")]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -613,8 +670,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_op.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
     p_op.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_op.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -632,8 +689,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_bal.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_bal.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_bal.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -647,8 +704,8 @@ def build_parser() -> argparse.ArgumentParser:
         "fees", help="Show recommended fee rates and mempool backlog."
     )
     p_fees.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_fees.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -664,8 +721,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_blk.add_argument("ref", nargs="?", default="-", help="Block height, 64-char hash, or 'latest'; - for stdin.",
     )
     p_blk.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_blk.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -680,8 +737,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_utxo.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_utxo.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_utxo.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -692,7 +749,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exclude unconfirmed (mempool) UTXOs.",
     )
     p_utxo.add_argument(
-        "--limit", type=int, default=15,
+        "--limit", type=_positive_int, default=15,
         help="Max UTXOs to display (default: 15; JSON always shows all).",
     )
     _add_api_url(p_utxo)
@@ -704,8 +761,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_tx.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
     p_tx.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_tx.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -720,8 +777,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_addr.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
     p_addr.add_argument(
-        "-n", "--network", choices=SUPPORTED_NETWORKS, default=_default_network(),
-        help="Bitcoin network (default: mainnet).",
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
     )
     p_addr.add_argument(
         "--json", action="store_true", dest="json_output",
@@ -738,9 +795,18 @@ def run(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    api_url = getattr(args, "api_url", None) or os.environ.get(ENV_API_URL) or None
+    # Flags win over environment variables: --api-url, then --network, then
+    # $BTC_TOOLKIT_API_URL, then $BTC_TOOLKIT_NETWORK, then mainnet.
+    network_flag = getattr(args, "network", None)
+    api_url = getattr(args, "api_url", None) or (None if network_flag else os.environ.get(ENV_API_URL) or None)
+    if network_flag is None and not api_url:
+        env_network = os.environ.get(ENV_NETWORK, "").strip().lower()
+        if env_network and env_network not in SUPPORTED_NETWORKS:
+            print(f"Error: ${ENV_NETWORK} must be one of {', '.join(SUPPORTED_NETWORKS)}.", file=sys.stderr)
+            return 2
+        args.network = env_network or "mainnet"
+    set_api_base(api_url)
     if api_url:
-        set_api_base(api_url)
         args.network = "custom"
 
     timeout = getattr(args, "timeout", None)
