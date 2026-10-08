@@ -6,10 +6,14 @@ important — what it does not.
 
 ## What the tool does
 
-- Reads public blockchain data over HTTPS from a Mempool-compatible API:
-  `https://mempool.space/api` by default, or any instance you point it at
-  with `--api-url` / `$BTC_TOOLKIT_API_URL` (your own node stack).
-- Performs address and txid validation **locally** before any request is made.
+- Reads public blockchain data from a Mempool-compatible API: over HTTPS from
+  `https://mempool.space/api` by default, or from any instance you point it at
+  with `--api-url` / `$BTC_TOOLKIT_API_URL` (your own node stack, often plain
+  HTTP on your local network).
+- Validates input **locally** before any request is made: transaction IDs and
+  block hashes must be 64 hex characters and heights non-negative integers;
+  addresses get a format check (length and characters) — full address
+  validation is left to the API, which rejects invalid addresses.
 - Prints results. That's it.
 
 ## What it does NOT do
@@ -40,7 +44,7 @@ The package depends on the Python standard library only. There is no
 - Supply-chain compromise via Python dependencies (there are none)
 - Hidden telemetry or data exfiltration (there is no outbound traffic except your queries)
 - Floating-point errors in balances and fees (integer satoshis throughout)
-- Malformed input reaching the network (validated locally first, exit code 2)
+- Malformed transaction IDs, block references and obviously malformed addresses reaching the network (validated locally first, exit code 2)
 - Hanging on a dead endpoint (configurable `--timeout`, bounded retries on transient errors only)
 
 ### What btc-toolkit does NOT protect you against

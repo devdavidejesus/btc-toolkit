@@ -99,7 +99,7 @@ def get_balance(address: str, network: str = "mainnet") -> AddressBalance:
 
     Args:
         address: The Bitcoin address (any type: P2PKH, P2SH, Bech32, Taproot).
-        network: 'mainnet' or 'testnet'.
+        network: 'mainnet', 'testnet' or 'signet'.
 
     Returns:
         An AddressBalance with confirmed and unconfirmed amounts.

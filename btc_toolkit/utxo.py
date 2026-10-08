@@ -89,7 +89,7 @@ def get_utxos(
 
     Args:
         address: The Bitcoin address (any type).
-        network: 'mainnet' or 'testnet'.
+        network: 'mainnet', 'testnet' or 'signet'.
         confirmed_only: If True, drop mempool (unconfirmed) UTXOs.
 
     Returns:

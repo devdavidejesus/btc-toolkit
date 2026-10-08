@@ -29,6 +29,11 @@ The JSON output is a contract:
 
 In batch mode the exit code is the **worst** code across all items.
 
+Errors in the command line itself, found before any item is processed — an
+unknown command, flag or flag value, an invalid `--timeout` or `$BTC_TOOLKIT_TIMEOUT`, an
+unreadable `--file`, or no items to process — are printed as plain text on
+stderr, also with exit code `2`.
+
 ## Schemas by command
 
 Examples below are real outputs from the test suite (synthetic data).

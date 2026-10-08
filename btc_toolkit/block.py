@@ -41,7 +41,7 @@ class BlockInfo:
 
     @property
     def timestamp_utc(self) -> str:
-        """Block timestamp as an ISO-8601 UTC string."""
+        """Block timestamp in UTC, formatted "YYYY-MM-DD HH:MM:SS UTC"."""
         return datetime.fromtimestamp(self.timestamp, tz=UTC).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
@@ -93,7 +93,7 @@ def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
     Args:
         ref: Block height (decimal), block hash (64 hex chars),
              or the literal string 'latest' for the chain tip.
-        network: 'mainnet' or 'testnet'.
+        network: 'mainnet', 'testnet' or 'signet'.
 
     Returns:
         A BlockInfo with the block's metadata.

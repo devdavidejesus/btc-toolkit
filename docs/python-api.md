@@ -30,7 +30,7 @@ All amounts are **integer satoshis**.
 | `btc_toolkit.tx.get_tx(txid, network="mainnet")` | `TxInfo` |
 | `btc_toolkit.balance.get_balance(address, network="mainnet")` | `AddressBalance` |
 | `btc_toolkit.address.get_address_overview(address, network="mainnet")` | `AddressOverview` |
-| `btc_toolkit.address.detect_address_type(address, network="mainnet")` | `str` (offline: `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`) |
+| `btc_toolkit.address.detect_address_type(address, network="mainnet")` | `str` (offline: `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`, or `unknown`) |
 | `btc_toolkit.utxo.get_utxos(address, network="mainnet", confirmed_only=False)` | `UtxoSet` |
 | `btc_toolkit.fees.get_fees(network="mainnet")` | `FeeEstimate` |
 | `btc_toolkit.block.get_block(ref, network="mainnet")` | `BlockInfo` — `ref` is a height, a hash, or `"latest"` |

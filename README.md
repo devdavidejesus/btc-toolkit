@@ -99,7 +99,7 @@ btc-toolkit address <address> --json
 btc-toolkit balance 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 ```
 
-Shows confirmed balance, unconfirmed (mempool) balance, and total — in BTC and satoshis. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), and Taproot.
+Shows the confirmed balance in BTC and satoshis and, when the address has mempool activity, the unconfirmed amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), and Taproot.
 
 ```bash
 # JSON output for scripting
@@ -214,14 +214,20 @@ btc-toolkit/
 │   ├── utxo.py           # UTXO inspector
 │   ├── tx.py             # Transaction inspector
 │   └── address.py        # Address overview + offline type detection
-├── tests/                # One file per module + test_cli.py — all API calls mocked
+├── tests/                # One file per module, CLI and completion tests — all API calls mocked
 ├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
 ├── completions/          # Static bash + zsh completions
+├── assets/               # Logo, social preview and the README demos
+├── .github/
+│   ├── workflows/        # CI, release, CodeQL, fuzz, Scorecard, weekly live smoke test
+│   ├── scripts/          # Release notes, live smoke test, demo recorder
+│   └── requirements/     # Hash-pinned CI tools
 ├── docs/
 │   ├── json-schema.md    # --json output per command + stability policy
 │   ├── python-api.md     # Using the toolkit as a typed Python library
 │   └── releases.md       # How releases are built and verified
 ├── SECURITY.md           # Threat model + vulnerability reporting
+├── CONTRIBUTING.md       # How changes are made and what they must include
 ├── CHANGELOG.md          # Every release, newest first
 ├── pyproject.toml
 ├── LICENSE               # MIT
