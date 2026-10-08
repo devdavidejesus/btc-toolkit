@@ -13,7 +13,7 @@ Fee rates are in sat/vB. Endpoints:
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_object
+from .api import get_json, as_object, field_int, field_number
 
 
 @dataclass
@@ -79,13 +79,14 @@ def get_fees(network: str = "mainnet") -> FeeEstimate:
     fees = as_object(get_json("/v1/fees/recommended", network), "/v1/fees/recommended")
     mempool = as_object(get_json("/mempool", network), "/mempool")
 
+    f, m = "/v1/fees/recommended", "/mempool"
     return FeeEstimate(
-        fastest=fees.get("fastestFee", 0),
-        half_hour=fees.get("halfHourFee", 0),
-        hour=fees.get("hourFee", 0),
-        economy=fees.get("economyFee", 0),
-        minimum=fees.get("minimumFee", 0),
-        mempool_tx_count=mempool.get("count", 0),
-        mempool_vsize=mempool.get("vsize", 0),
-        mempool_total_fee=mempool.get("total_fee", 0),
+        fastest=field_number(fees, "fastestFee", f),
+        half_hour=field_number(fees, "halfHourFee", f),
+        hour=field_number(fees, "hourFee", f),
+        economy=field_number(fees, "economyFee", f),
+        minimum=field_number(fees, "minimumFee", f),
+        mempool_tx_count=field_int(mempool, "count", m),
+        mempool_vsize=field_int(mempool, "vsize", m),
+        mempool_total_fee=round(field_number(mempool, "total_fee", m)),  # sent as BTC * 1e8: 28999999.999999996
     )

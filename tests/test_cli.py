@@ -198,15 +198,91 @@ class TestCliAutomation(unittest.TestCase):
             os.environ.pop(var, None)
 
     # --- env vars ---
-    def test_env_network_sets_default(self):
+    @patch("btc_toolkit.balance.get_json")
+    def test_env_network_sets_default(self, m):
         os.environ["BTC_TOOLKIT_NETWORK"] = "signet"
-        args = cli.build_parser().parse_args(["fees"])
-        self.assertEqual(args.network, "signet")
+        m.return_value = ADDR_DATA
+        code, out = _run(["balance", ADDR, "--json"])
+        self.assertEqual((code, json.loads(out)["network"]), (0, "signet"))
+        self.assertEqual(m.call_args.args[1], "signet")
 
-    def test_env_network_invalid_falls_back_to_mainnet(self):
+    def test_env_network_invalid_is_an_error(self):
+        # An unsupported value (e.g. testnet4) used to fall back to mainnet silently.
+        os.environ["BTC_TOOLKIT_NETWORK"] = "testnet4"
+        err = io.StringIO()
+        with patch("sys.stderr", err):
+            code, out = _run(["fees", "--json"])
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("BTC_TOOLKIT_NETWORK", err.getvalue())
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_network_flag_beats_env_api_url(self, m):
+        # Flags always win: an explicit --network ignores $BTC_TOOLKIT_API_URL.
+        from btc_toolkit.api import get_api_base
+        os.environ["BTC_TOOLKIT_API_URL"] = "http://env.local/api"
+        m.return_value = ADDR_DATA
+        code, out = _run(["balance", ADDR, "--json", "--network", "testnet"])
+        self.assertEqual((code, json.loads(out)["network"]), (0, "testnet"))
+        self.assertEqual(get_api_base("testnet"), "https://mempool.space/testnet/api")
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_network_flag_beats_env_network(self, m):
+        os.environ["BTC_TOOLKIT_NETWORK"] = "signet"
+        m.return_value = ADDR_DATA
+        code, out = _run(["balance", ADDR, "--json", "-n", "mainnet"])
+        self.assertEqual(json.loads(out)["network"], "mainnet")
+
+    @patch("btc_toolkit.balance.get_json")
+    def test_invalid_env_network_does_not_block_an_api_url(self, m):
+        # Only checked when it is used: an API URL (flag or env) wins over it.
         os.environ["BTC_TOOLKIT_NETWORK"] = "regtest"
-        args = cli.build_parser().parse_args(["fees"])
-        self.assertEqual(args.network, "mainnet")
+        m.return_value = ADDR_DATA
+        os.environ["BTC_TOOLKIT_API_URL"] = "http://regtest-node.local/api"
+        code, out = _run(["balance", ADDR, "--json"])
+        self.assertEqual((code, json.loads(out)["network"]), (0, "custom"))
+        del os.environ["BTC_TOOLKIT_API_URL"]
+        code, out = _run(["balance", ADDR, "--json", "--api-url", "http://flag.local/api"])
+        self.assertEqual((code, json.loads(out)["network"]), (0, "custom"))
+
+    def test_timeout_too_large_is_invalid_input(self):
+        err = io.StringIO()
+        with patch("sys.stderr", err):
+            code, _ = _run(["fees", "--json", "--timeout", "1e10"])
+        self.assertEqual(code, 2)
+        self.assertIn("at most", err.getvalue())
+
+    def test_limit_not_a_number_message(self):
+        err = io.StringIO()
+        with patch("sys.stderr", err), self.assertRaises(SystemExit):
+            cli.run(["utxo", ADDR, "--limit", "abc"])
+        self.assertIn("invalid int value: 'abc'", err.getvalue())
+
+    def test_timeout_not_finite_is_invalid_input(self):
+        for value in ("nan", "inf", "1e309"):
+            with self.subTest(value=value):
+                err = io.StringIO()
+                with patch("sys.stderr", err):
+                    code, _ = _run(["fees", "--json", "--timeout", value])
+                self.assertEqual(code, 2)
+                self.assertIn("timeout", err.getvalue())
+
+    def test_file_with_byte_order_mark(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as fh:
+            fh.write("\ufeff# items\r\n" + ADDR + "\r\n")
+        try:
+            with patch("btc_toolkit.balance.get_json", return_value=ADDR_DATA):
+                code, out = _run(["balance", "--file", fh.name, "--json"])
+        finally:
+            os.unlink(fh.name)
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["address"], ADDR)
+
+    def test_limit_must_be_positive(self):
+        for value in ("0", "-1"):
+            with self.subTest(value=value), patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit) as ex:
+                cli.run(["utxo", ADDR, "--limit", value])
+            self.assertEqual(ex.exception.code, 2)
 
     @patch("btc_toolkit.balance.get_json")
     def test_env_api_url_applies(self, m):

@@ -8,7 +8,7 @@ human-readable messages from its OP_RETURN outputs.
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_object, NotFoundError, MempoolAPIError
+from .api import get_json, as_object, field_objects, field_str, NotFoundError, MempoolAPIError
 
 # OP_RETURN opcode
 OP_RETURN_HEX = "6a"
@@ -114,10 +114,17 @@ def _extract_pushdata(script_after_opreturn: str) -> str | None:
     """
     Extract pushed data from script bytes following OP_RETURN.
 
-    Handles OP_PUSHBYTES_N (0x01-0x4b), OP_PUSHDATA1 (0x4c),
-    OP_PUSHDATA2 (0x4d).
+    Handles OP_0 (an empty push), OP_PUSHBYTES_N (0x01-0x4b), OP_PUSHDATA1
+    (0x4c), OP_PUSHDATA2 (0x4d) and OP_PUSHDATA4 (0x4e), and skips the
+    small-number opcodes OP_1NEGATE and OP_1–OP_16 (0x4f, 0x51–0x60, e.g. the
+    OP_13 that marks a Runestone), which push no data bytes.
+
+    A non-standard script never looks empty: a push that runs past the end
+    keeps the bytes that are there, and when nothing could be read as a push
+    (an unknown opcode, a truncated length), the unparsed bytes are returned
+    as they are. Returns None only for input that is not hex.
     """
-    if len(script_after_opreturn) < 2 or not _is_hex(script_after_opreturn):
+    if not script_after_opreturn or not _is_hex(script_after_opreturn):
         return None
 
     data_parts = []
@@ -125,34 +132,31 @@ def _extract_pushdata(script_after_opreturn: str) -> str | None:
     script = script_after_opreturn
 
     while pos < len(script):
-        if pos + 2 > len(script):
-            break
-
+        op_start = pos
         length_byte = int(script[pos : pos + 2], 16)
         pos += 2
 
-        if 0x01 <= length_byte <= 0x4B:
-            data_len = length_byte
-        elif length_byte == 0x4C:
-            if pos + 2 > len(script):
-                break
-            data_len = int(script[pos : pos + 2], 16)
-            pos += 2
-        elif length_byte == 0x4D:
-            if pos + 4 > len(script):
-                break
-            data_len = int(script[pos + 2 : pos + 4] + script[pos : pos + 2], 16)
-            pos += 4
+        if length_byte == 0x00 or length_byte == 0x4F or 0x51 <= length_byte <= 0x60:
+            continue  # OP_0 / OP_1NEGATE / OP_1..OP_16: no data bytes
+        width = {0x4C: 1, 0x4D: 2, 0x4E: 4}.get(length_byte, 0)  # OP_PUSHDATA1/2/4 length field
+        if not (0x01 <= length_byte <= 0x4B or width):
+            pos = op_start  # an opcode that pushes nothing we can read
+            break
+        if pos + 2 * width > len(script):
+            pos = op_start  # the length field itself is cut off
+            break
+        if width:
+            data_len = int.from_bytes(bytes.fromhex(script[pos : pos + 2 * width]), "little")
+            pos += 2 * width
         else:
-            break
+            data_len = length_byte
 
-        end = pos + data_len * 2
-        if end > len(script):
-            break
-
+        end = min(pos + data_len * 2, len(script))  # a push past the end keeps what is there
         data_parts.append(script[pos:end])
         pos = end
 
+    if not "".join(data_parts) and pos < len(script):
+        return script[pos:]  # nothing readable as pushes: the raw bytes, not an empty payload
     return "".join(data_parts) if data_parts else None
 
 
@@ -160,36 +164,40 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
     """
     Fetch a transaction and decode all its OP_RETURN outputs.
 
-    Returns a list of OPReturnData, one per OP_RETURN output found.
+    Returns a list of OPReturnData, one per OP_RETURN output — including an
+    OP_RETURN that carries no data (raw_hex "", size 0), such as a bare
+    OP_RETURN or a Runestone marker with nothing after it.
     """
     tx_data = fetch_transaction(txid, network)
     results = []
 
-    for i, vout in enumerate(tx_data.get("vout", [])):
-        if vout.get("scriptpubkey_type", "") != "op_return":
+    for i, vout in enumerate(field_objects(tx_data, "vout", "/tx")):
+        if field_str(vout, "scriptpubkey_type", "/tx") != "op_return":
             continue
 
-        asm = vout.get("scriptpubkey_asm", "")
+        asm = field_str(vout, "scriptpubkey_asm", "/tx")
         hex_data = _parse_scriptpubkey_asm(asm)
 
         if not hex_data:
             raw_script = vout.get("scriptpubkey", "")
-            if not isinstance(raw_script, str) or not _is_hex(raw_script):
+            if raw_script == "" and asm.strip() == "OP_RETURN":
+                hex_data = ""  # a bare OP_RETURN, and the API left out the raw script
+            elif not isinstance(raw_script, str) or not _is_hex(raw_script) \
+                    or not raw_script.lower().startswith(OP_RETURN_HEX):
                 raise MempoolAPIError(f"Unexpected response from /tx: output {i} has a malformed scriptpubkey")
-            if raw_script.startswith(OP_RETURN_HEX):
-                hex_data = _extract_pushdata(raw_script[2:])
+            else:
+                hex_data = _extract_pushdata(raw_script[2:].lower()) or ""
 
-        if hex_data:
-            raw_bytes = bytes.fromhex(hex_data)
-            results.append(
-                OPReturnData(
-                    txid=txid,
-                    vout_index=i,
-                    raw_hex=hex_data,
-                    decoded_text=_decode_hex_to_text(hex_data),
-                    raw_bytes=raw_bytes,
-                    size=len(raw_bytes),
-                )
+        raw_bytes = bytes.fromhex(hex_data)
+        results.append(
+            OPReturnData(
+                txid=txid,
+                vout_index=i,
+                raw_hex=hex_data,
+                decoded_text=_decode_hex_to_text(hex_data),
+                raw_bytes=raw_bytes,
+                size=len(raw_bytes),
             )
+        )
 
     return results

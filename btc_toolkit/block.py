@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from typing import Any
-from .api import get_json, get_text, as_object, NotFoundError
+from .api import get_json, get_text, as_object, MempoolAPIError, NotFoundError
+from .api import field_int, field_number, field_opt_str, field_str, field_timestamp
 
 
 class BlockNotFoundError(NotFoundError):
@@ -33,7 +34,7 @@ class BlockInfo:
     weight: int
     version: int
     merkle_root: str
-    previousblockhash: str
+    previousblockhash: str | None  # None for the genesis block
     nonce: int
     bits: int
     difficulty: float
@@ -78,12 +79,23 @@ def _is_block_hash(ref: str) -> bool:
 
 
 def _is_height(ref: str) -> bool:
-    return ref.strip().isdigit()
+    ref = ref.strip()
+    return ref.isascii() and ref.isdigit()
 
 
 def get_tip_height(network: str = "mainnet") -> int:
     """Return the current chain tip height."""
-    return int(get_text("/blocks/tip/height", network))
+    text = get_text("/blocks/tip/height", network)
+    if not (text.isascii() and text.isdigit()):
+        raise MempoolAPIError(f"Unexpected response from /blocks/tip/height: {text[:40]!r}")
+    return int(text)
+
+
+def _block_hash_from(text: str, path: str) -> str:
+    """The /block-height endpoint answers with a bare block hash."""
+    if not _is_block_hash(text):
+        raise MempoolAPIError(f"Unexpected response from {path}: {text[:40]!r}")
+    return text.lower()
 
 
 def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
@@ -108,11 +120,11 @@ def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
     try:
         if ref.lower() == "latest":
             height = get_tip_height(network)
-            block_hash = get_text(f"/block-height/{height}", network)
-        elif _is_height(ref):
-            block_hash = get_text(f"/block-height/{ref}", network)
-        elif _is_block_hash(ref):
+            block_hash = _block_hash_from(get_text(f"/block-height/{height}", network), "/block-height")
+        elif _is_block_hash(ref):  # before the height check: a 64-digit hash is all decimal digits
             block_hash = ref.lower()
+        elif _is_height(ref):
+            block_hash = _block_hash_from(get_text(f"/block-height/{ref}", network), "/block-height")
         else:
             raise ValueError(
                 f"Invalid block reference: {ref!r}. "
@@ -123,18 +135,19 @@ def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
     except NotFoundError as e:
         raise BlockNotFoundError(f"Block not found: {ref}") from e
 
+    path = "/block"
     return BlockInfo(
-        hash=data.get("id", block_hash),
-        height=data.get("height", 0),
-        timestamp=data.get("timestamp", 0),
-        tx_count=data.get("tx_count", 0),
-        size=data.get("size", 0),
-        weight=data.get("weight", 0),
-        version=data.get("version", 0),
-        merkle_root=data.get("merkle_root", ""),
-        previousblockhash=data.get("previousblockhash", ""),
-        nonce=data.get("nonce", 0),
-        bits=data.get("bits", 0),
-        difficulty=data.get("difficulty", 0),
-        mediantime=data.get("mediantime", 0),
+        hash=field_str(data, "id", path, default=block_hash),
+        height=field_int(data, "height", path),
+        timestamp=field_timestamp(data, "timestamp", path),
+        tx_count=field_int(data, "tx_count", path),
+        size=field_int(data, "size", path),
+        weight=field_int(data, "weight", path),
+        version=field_int(data, "version", path),
+        merkle_root=field_str(data, "merkle_root", path),
+        previousblockhash=field_opt_str(data, "previousblockhash", path),
+        nonce=field_int(data, "nonce", path),
+        bits=field_int(data, "bits", path),
+        difficulty=field_number(data, "difficulty", path),
+        mediantime=field_timestamp(data, "mediantime", path),
     )

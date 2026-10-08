@@ -22,34 +22,44 @@ def detect_address_type(address: str, network: str = "mainnet") -> str:
     """
     Detect the address type from its prefix and length (offline).
 
+    Mainnet uses 1 / 3 / bc1; testnet and signet share m, n / 2 / tb1. With a
+    custom API (network 'custom') the chain is unknown, so the prefixes of
+    every network are accepted, including regtest's bcrt1.
+
     Returns one of: P2PKH, P2SH, P2WPKH, P2WSH, P2TR,
     or 'unknown' when the shape doesn't match any known format.
     """
     a = address.strip()
     lower = a.lower()
 
-    if network == "testnet":
-        if a.startswith(("m", "n")):
-            return "P2PKH"
-        if a.startswith("2"):
-            return "P2SH"
-        hrp = "tb1"
+    p2pkh: tuple[str, ...]
+    p2sh: tuple[str, ...]
+    hrps: tuple[str, ...]
+    if network == "mainnet":
+        p2pkh, p2sh, hrps = ("1",), ("3",), ("bc1",)
+    elif network in ("testnet", "signet"):
+        p2pkh, p2sh, hrps = ("m", "n"), ("2",), ("tb1",)
     else:
-        if a.startswith("1"):
-            return "P2PKH"
-        if a.startswith("3"):
-            return "P2SH"
-        hrp = "bc1"
+        p2pkh, p2sh, hrps = ("1", "m", "n"), ("3", "2"), ("bcrt1", "bc1", "tb1")
 
-    if lower.startswith(hrp + "q"):
-        # SegWit v0: length distinguishes key-hash from script-hash
-        if len(a) == len(hrp) + 39:  # 42 chars on mainnet
-            return "P2WPKH"
-        if len(a) == len(hrp) + 59:  # 62 chars on mainnet
-            return "P2WSH"
+    if a.startswith(p2pkh):
+        return "P2PKH"
+    if a.startswith(p2sh):
+        return "P2SH"
+
+    for hrp in hrps:
+        if not lower.startswith(hrp):
+            continue
+        # After "<hrp>": witness version, program and a 6-char checksum.
+        # A 20-byte program takes 39 chars after the hrp, a 32-byte one 59.
+        if lower.startswith(hrp + "q"):  # SegWit v0 (BIP 173)
+            if len(a) == len(hrp) + 39:
+                return "P2WPKH"
+            if len(a) == len(hrp) + 59:
+                return "P2WSH"
+        elif lower.startswith(hrp + "p") and len(a) == len(hrp) + 59:  # Taproot: v1, 32-byte key (BIP 341/350)
+            return "P2TR"
         return "unknown"
-    if lower.startswith(hrp + "p"):
-        return "P2TR"
 
     return "unknown"
 

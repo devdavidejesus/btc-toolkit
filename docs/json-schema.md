@@ -30,7 +30,7 @@ The JSON output is a contract:
 In batch mode the exit code is the **worst** code across all items.
 
 Errors in the command line itself, found before any item is processed — an
-unknown command, flag or flag value, an invalid `--timeout` or `$BTC_TOOLKIT_TIMEOUT`, an
+unknown command, flag or flag value, an invalid `--timeout`, `$BTC_TOOLKIT_TIMEOUT` or `$BTC_TOOLKIT_NETWORK`, an
 unreadable `--file`, or no items to process — are printed as plain text on
 stderr, also with exit code `2`.
 
@@ -82,6 +82,10 @@ Examples below are real outputs from the test suite (synthetic data).
   ]
 }
 ```
+
+An OP_RETURN output that carries no data — a bare `OP_RETURN`, `OP_RETURN OP_0`, a
+Runestone marker with nothing after it — is listed with `"raw_hex": ""`,
+`"decoded_text": null` and `"size_bytes": 0`.
 
 ### `address <address> --json`
 

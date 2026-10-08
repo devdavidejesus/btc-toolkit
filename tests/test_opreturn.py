@@ -166,22 +166,24 @@ class TestScriptParsingEdges(unittest.TestCase):
         script = "4d" + (600).to_bytes(2, "little").hex() + msg.hex()
         self.assertEqual(_extract_pushdata(script), msg.hex())
 
+    # A non-standard script must never be reported as an empty OP_RETURN:
+    # whatever bytes it carries are returned.
     def test_pushdata2_truncated_length(self):
         from btc_toolkit.opreturn import _extract_pushdata
-        self.assertIsNone(_extract_pushdata("4d58"))
+        self.assertEqual(_extract_pushdata("4d58"), "4d58")      # unreadable: the raw bytes
 
     def test_pushdata1_truncated_length(self):
         from btc_toolkit.opreturn import _extract_pushdata
-        self.assertIsNone(_extract_pushdata("4c"))
+        self.assertEqual(_extract_pushdata("4c"), "4c")
 
     def test_unknown_opcode_stops_parsing(self):
         from btc_toolkit.opreturn import _extract_pushdata
-        self.assertIsNone(_extract_pushdata("4e0000"))   # OP_PUSHDATA4 is not supported
-        self.assertEqual(_extract_pushdata("02aabb00cc"), "aabb")  # parsed data is kept
+        self.assertEqual(_extract_pushdata("50"), "50")                 # OP_RESERVED: raw bytes
+        self.assertEqual(_extract_pushdata("02aabb00cc"), "aabb")       # parsed data is kept
 
     def test_declared_length_longer_than_data(self):
         from btc_toolkit.opreturn import _extract_pushdata
-        self.assertIsNone(_extract_pushdata("05aabb"))
+        self.assertEqual(_extract_pushdata("05aabb"), "aabb")           # the bytes that are there
 
     def test_odd_trailing_nibble_is_ignored(self):
         from btc_toolkit.opreturn import _extract_pushdata
@@ -205,16 +207,33 @@ class TestDecodeEdges(unittest.TestCase):
                 self.assertRaises(TransactionNotFoundError):
             fetch_transaction("0" * 64)
 
-    def test_op_return_without_payload_is_skipped(self):
-        # "OP_RETURN" alone, and a raw script that does not start with 0x6a:
-        # both yield no payload, and decoding continues to the next output.
+    def test_op_return_without_payload_is_reported(self):
+        # A bare OP_RETURN, OP_RETURN OP_0 and a Runestone marker with no data are
+        # still OP_RETURN outputs: reported with an empty payload, not skipped.
         from btc_toolkit.opreturn import decode_op_return
         tx = {"vout": [
             {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN", "scriptpubkey": "6a"},
-            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "", "scriptpubkey": "51"},
+            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN OP_0", "scriptpubkey": "6a00"},
+            {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN OP_PUSHNUM_13", "scriptpubkey": "6a5d"},
             {"scriptpubkey_type": "op_return", "scriptpubkey_asm": "OP_RETURN OP_PUSHBYTES_2 6869",
              "scriptpubkey": "6a026869"},
         ]}
         with patch("btc_toolkit.opreturn.fetch_transaction", return_value=tx):
             out = decode_op_return("0" * 64)
-        self.assertEqual([(o.vout_index, o.decoded_text) for o in out], [(2, "hi")])
+        self.assertEqual([(o.vout_index, o.raw_hex, o.size, o.decoded_text) for o in out],
+                         [(0, "", 0, None), (1, "", 0, None), (2, "", 0, None), (3, "6869", 2, "hi")])
+
+    def test_op_return_type_without_op_return_script_is_an_api_error(self):
+        from btc_toolkit.api import MempoolAPIError
+        from btc_toolkit.opreturn import decode_op_return
+        tx = {"vout": [{"scriptpubkey_type": "op_return", "scriptpubkey_asm": "", "scriptpubkey": "51"}]}
+        with patch("btc_toolkit.opreturn.fetch_transaction", return_value=tx), self.assertRaises(MempoolAPIError):
+            decode_op_return("0" * 64)
+
+    def test_raw_script_pushdata4_and_small_number_opcodes(self):
+        from btc_toolkit.opreturn import _extract_pushdata
+        self.assertEqual(_extract_pushdata("4e05000000" + "68656c6c6f"), "68656c6c6f")      # OP_PUSHDATA4
+        self.assertEqual(_extract_pushdata("00" + "0568656c6c6f"), "68656c6c6f")           # OP_0, then data
+        self.assertEqual(_extract_pushdata("5d" + "0400c0a233"), "00c0a233")               # OP_13 (Runestone)
+        self.assertEqual(_extract_pushdata("4e050000"), "4e050000")                        # truncated length: raw
+        self.assertEqual(_extract_pushdata("51"), None)                                    # OP_1 only: no data

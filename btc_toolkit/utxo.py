@@ -15,7 +15,8 @@ Values are in satoshis.
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_array, NotFoundError
+from .api import get_json, as_array, field_bool, field_int, field_object, field_opt_int, field_str
+from .api import MempoolAPIError, NotFoundError
 from .balance import _validate_address, AddressNotFoundError, SATS_PER_BTC
 
 
@@ -107,19 +108,22 @@ def get_utxos(
     except NotFoundError as e:
         raise AddressNotFoundError(f"Address not found: {address}") from e
 
+    path = "/address/utxo"
     utxos = []
     for item in data:
-        status = item.get("status", {})
-        confirmed = status.get("confirmed", False)
+        if not isinstance(item, dict):
+            raise MempoolAPIError(f"Unexpected response from {path}: an entry is not an object")
+        status = field_object(item, "status", path)
+        confirmed = field_bool(status, "confirmed", path)
         if confirmed_only and not confirmed:
             continue
         utxos.append(
             Utxo(
-                txid=item.get("txid", ""),
-                vout=item.get("vout", 0),
-                value=item.get("value", 0),
+                txid=field_str(item, "txid", path),
+                vout=field_int(item, "vout", path),
+                value=field_int(item, "value", path),
                 confirmed=confirmed,
-                block_height=status.get("block_height"),
+                block_height=field_opt_int(status, "block_height", path),
             )
         )
 
