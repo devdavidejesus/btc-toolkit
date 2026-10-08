@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install --require-hashes -r .github/requirements/build.txt
-      - run: python -m build
+      - run: python -m build --no-isolation
       - name: Test the wheel as users get it (not the source tree)
         run: |
           python -m venv /tmp/wheel-env
