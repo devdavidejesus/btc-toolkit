@@ -68,7 +68,7 @@ def get_fees(network: str = "mainnet") -> FeeEstimate:
     Fetch recommended fee rates and mempool backlog statistics.
 
     Args:
-        network: 'mainnet' or 'testnet'.
+        network: 'mainnet', 'testnet' or 'signet'.
 
     Returns:
         A FeeEstimate with rates in sat/vB and backlog stats.

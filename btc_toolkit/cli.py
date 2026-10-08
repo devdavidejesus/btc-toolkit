@@ -6,9 +6,11 @@ A unified command-line toolkit for querying the Bitcoin network via the
 Mempool.space API. No Bitcoin Core required, zero external dependencies.
 
 Usage:
-    btc-toolkit opreturn <txid> [--network testnet] [--json] [--raw]
-    btc-toolkit balance <address> [--network testnet] [--json]
+    btc-toolkit <command> <item> [--network mainnet|testnet|signet] [--json]
+                [--api-url URL] [--timeout SECONDS] [--file PATH]
 
+Commands: opreturn, tx, address, balance, fees, block, utxo. Every inspecting
+command also reads one item per line from stdin (-) or --file.
 Run `btc-toolkit <command> --help` for command-specific options.
 """
 

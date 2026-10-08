@@ -89,7 +89,7 @@ def get_tx(txid: str, network: str = "mainnet") -> TxInfo:
 
     Args:
         txid: The transaction ID (64-char hex).
-        network: 'mainnet' or 'testnet'.
+        network: 'mainnet', 'testnet' or 'signet'.
 
     Returns:
         A TxInfo with status, fees, sizes, and I/O aggregates.

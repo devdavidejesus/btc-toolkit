@@ -2,7 +2,7 @@
 # Install: source this file from ~/.bashrc, e.g.
 #   echo 'source /path/to/btc-toolkit.bash' >> ~/.bashrc
 _btc_toolkit() {
-    local cur prev commands
+    local cur prev commands flags
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -16,7 +16,20 @@ _btc_toolkit() {
         -n|--network)
             COMPREPLY=( $(compgen -W "mainnet testnet signet" -- "${cur}") )
             return 0 ;;
+        --file)
+            COMPREPLY=( $(compgen -f -- "${cur}") )
+            return 0 ;;
+        --api-url|--timeout|--limit)
+            return 0 ;;
     esac
-    COMPREPLY=( $(compgen -W "--json --network --api-url --timeout --file --help" -- "${cur}") )
+    # Each command gets exactly the flags it accepts.
+    flags="--json --network --api-url --timeout --help"
+    case "${COMP_WORDS[1]}" in
+        fees)     ;;
+        opreturn) flags="${flags} --file --raw" ;;
+        utxo)     flags="${flags} --file --confirmed-only --limit" ;;
+        *)        flags="${flags} --file" ;;
+    esac
+    COMPREPLY=( $(compgen -W "${flags}" -- "${cur}") )
 }
 complete -F _btc_toolkit btc-toolkit

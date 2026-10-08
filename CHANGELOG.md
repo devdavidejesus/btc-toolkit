@@ -17,6 +17,13 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 - The release notes check rejects an empty CHANGELOG entry, and the oldest entry no longer runs into the link list.
 - The sdist ships `tests/__init__.py`, so the documented test command works from an unpacked sdist.
 
+- The shell completions offered the same flags for every command: `--raw`, `--confirmed-only` and `--limit` were
+  missing, and `--file` was offered for `fees`, which rejects it. Each command now gets exactly the flags it accepts,
+  and a test keeps the completions in sync with the CLI.
+- Documentation: the README architecture tree and `balance` description, the exit-code reference (which errors are
+  plain text), the input-validation and transport wording in SECURITY.md, `detect_address_type`'s `unknown` result,
+  and outdated docstrings.
+
 ### Changed
 - Refreshed the hash-pinned CI tool requirements (transitive dependencies only; the pinned tools are unchanged).
 

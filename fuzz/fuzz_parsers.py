@@ -8,7 +8,8 @@ Properties checked:
   (a clean, exit-code-1 error) — never a crash, never a misleading ValueError;
 - input validators only raise ValueError (exit code 2).
 
-Run:  pip install atheris && python fuzz/fuzz_parsers.py -max_total_time=60
+Run from the repository root:
+    pip install atheris && PYTHONPATH=. python fuzz/fuzz_parsers.py -max_total_time=60
 """
 
 import sys
