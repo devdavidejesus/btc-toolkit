@@ -6,6 +6,20 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Security
+- The release build no longer installs an unpinned setuptools: the build backend is pinned by hash, like the build
+  tool, and the package is built with `--no-isolation`.
+- A tag is only published if it points to a commit on `main`. Runs for the same tag never overlap, and a duplicate run
+  publishes nothing: on v1.7.0 one tag push started three release runs; the first published and the duplicates failed
+  at the PyPI upload.
+
+### Fixed
+- The release notes check rejects an empty CHANGELOG entry, and the oldest entry no longer runs into the link list.
+- The sdist ships `tests/__init__.py`, so the documented test command works from an unpacked sdist.
+
+### Changed
+- Refreshed the hash-pinned CI tool requirements (transitive dependencies only; the pinned tools are unchanged).
+
 ## [1.7.0] — 2026-10-07
 
 ### Removed

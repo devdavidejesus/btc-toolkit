@@ -1,1 +1,3 @@
 build==1.6.1
+# The build backend runs inside the release job: pin it by hash too and build with --no-isolation.
+setuptools==84.0.0

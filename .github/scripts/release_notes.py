@@ -24,9 +24,11 @@ def section(tag: str) -> tuple[str, str]:
     # heading is "## [X.Y.Z] — date" or "## [X.Y.Z] — date — Name"
     title = f"{tag} — {parts[1]}" if len(parts) > 1 else tag
     start = match.end()
-    nxt = re.search(r"^## \[", text[start:], re.M)
-    body = text[start:start + nxt.start()] if nxt else text[start:]
-    return title, body.strip()
+    nxt = re.search(r"^(## |\[[^\]]+\]: )", text[start:], re.M)  # next section or the link definitions
+    body = (text[start:start + nxt.start()] if nxt else text[start:]).strip()
+    if not body:
+        sys.exit(f"CHANGELOG.md entry for {version} is empty")
+    return title, body
 
 
 def main() -> None:

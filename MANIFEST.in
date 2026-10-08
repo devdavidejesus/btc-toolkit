@@ -1,0 +1,2 @@
+# The sdist ships the test suite; tests/__init__.py makes `python -m unittest discover -s tests -t .` work.
+recursive-include tests *.py

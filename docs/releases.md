@@ -24,8 +24,12 @@ PyPI is what's in the repository.
    wheel**, verifies it declares zero dependencies, and lints.
 2. The maintainer pushes a tag `vX.Y.Z` on the merge commit.
 3. The [`release`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/release.yml)
-   workflow checks that the tag matches the package version, builds the sdist
-   and wheel from a clean checkout, and smoke-tests the wheel.
+   workflow checks that the tag points to a commit on `main` and matches the
+   package version, builds the sdist and wheel from a clean checkout, with the
+   build tool and the build backend (setuptools) pinned by hash, and
+   smoke-tests the wheel. Runs for the same tag never overlap, and a run for a
+   version already on PyPI publishes nothing. If a later job fails, use
+   "Re-run failed jobs" (re-running everything would skip publishing).
 4. The same workflow publishes to PyPI through **Trusted Publishing**: PyPI
    accepts the upload because GitHub proves, with a short-lived OIDC token,
    which repository and workflow produced it. There is no API token to leak.
@@ -34,8 +38,8 @@ PyPI is what's in the repository.
    the release page ("Verified details").
 6. The same workflow signs the files with Sigstore (keyless, with the workflow's own
    identity) and creates the GitHub Release, with the notes taken from `CHANGELOG.md`
-   and the signed files attached. A tag without a CHANGELOG entry fails before
-   anything is published.
+   and the signed files attached. A tag without a CHANGELOG entry, or with an
+   empty one, fails before anything is published.
 
 A weekly workflow also reads known on-chain facts from mainnet
 ([`live-smoke.yml`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/live-smoke.yml)),
