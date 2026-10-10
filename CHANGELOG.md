@@ -6,6 +6,25 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+## [1.7.2] — 2026-10-10
+
+A documentation release: the code is the same as in 1.7.1. It republishes the README on PyPI with the
+corrections below.
+
+### Added
+- Homebrew install on macOS and Linux: `brew install devdavidejesus/tap/btc-toolkit`. The formula, in
+  [devdavidejesus/homebrew-tap](https://github.com/devdavidejesus/homebrew-tap), installs the PyPI sdist pinned by
+  its SHA-256, plus the bash and zsh completions. `docs/releases.md` describes how the formula is updated after
+  each release.
+
+### Fixed
+- README and documentation claims that did not match the code: `--api-url` points to a self-hosted Mempool
+  instance, not to a node; retries happen on HTTP 429, 500, 502, 503 and 504 only; `--timeout` applies to each
+  network operation of each attempt; a new command also needs shell completions and tests; `tx` shows input and
+  output totals; `$BTC_TOOLKIT_NETWORK` is ignored when an API URL is set. SECURITY.md now mentions the Sigstore
+  bundles on GitHub Releases, and the CI lists in CONTRIBUTING.md and `docs/releases.md` include coverage,
+  type-checking and the fuzzer.
+
 ## [1.7.1] — 2026-10-08
 
 Fixes from a full audit of the code, the documentation and the release pipeline.
@@ -186,7 +205,8 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
-[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.2...HEAD
+[1.7.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.2...v1.7.0
 [1.6.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.1...v1.6.2
