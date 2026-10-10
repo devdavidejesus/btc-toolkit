@@ -51,6 +51,12 @@ Or isolated, via [pipx](https://pipx.pypa.io):
 pipx install btc-toolkit
 ```
 
+Or via [Homebrew](https://brew.sh) on macOS and Linux, with shell completion included:
+
+```bash
+brew install devdavidejesus/tap/btc-toolkit
+```
+
 From source:
 
 ```bash
@@ -61,7 +67,7 @@ pip install -e .
 
 **Shell completion** (optional): static scripts in
 [`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash and zsh — tab-complete
-commands, networks and flags, zero dependencies as always.
+commands, networks and flags, zero dependencies as always. The Homebrew formula installs them for you.
 
 ## Usage
 
