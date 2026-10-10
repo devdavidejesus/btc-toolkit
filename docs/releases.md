@@ -40,6 +40,11 @@ PyPI is what's in the repository.
    identity) and creates the GitHub Release, with the notes taken from `CHANGELOG.md`
    and the signed files attached. A tag without a CHANGELOG entry, or with an
    empty one, fails before anything is published.
+7. The maintainer then updates the Homebrew formula in
+   [`devdavidejesus/homebrew-tap`](https://github.com/devdavidejesus/homebrew-tap)
+   through a pull request: the new sdist's PyPI URL and SHA-256, and the
+   completion files from the new tag. On that pull request the tap's CI builds,
+   installs and tests the formula on macOS and Linux.
 
 A weekly workflow also reads known on-chain facts from mainnet
 ([`live-smoke.yml`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/live-smoke.yml)),
@@ -90,7 +95,8 @@ grep -A3 '^dependencies' /tmp/verify/src/pyproject.toml
 ```
 
 PyPI also publishes SHA256 digests for every file on the release page; `pip`
-verifies them on install.
+verifies them on install. The Homebrew formula pins the same sdist by its
+SHA-256, and `brew` refuses to install a file that does not match.
 
 ## What is not (yet) provided
 
