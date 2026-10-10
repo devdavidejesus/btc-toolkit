@@ -4,7 +4,7 @@
 
 **Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.**
 
-Query the Bitcoin network directly via the [Mempool.space](https://mempool.space) public API.
+Query the Bitcoin network via the [Mempool.space](https://mempool.space) public API, or your own Mempool instance.
 
 [![Tests](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/btc-toolkit?label=PyPI&color=F7931A&logo=pypi&logoColor=white)](https://pypi.org/project/btc-toolkit/)
@@ -29,7 +29,7 @@ Query the Bitcoin network directly via the [Mempool.space](https://mempool.space
 | Command | Description |
 |---|---|
 | `btc-toolkit opreturn <txid>` | Decode OP_RETURN messages from a transaction |
-| `btc-toolkit tx <txid>` | Full transaction details: status, fees, size, I/O, RBF |
+| `btc-toolkit tx <txid>` | Transaction details: status, fees, size, input/output totals, RBF |
 | `btc-toolkit address <address>` | Aggregated overview: type, balance, lifetime totals |
 | `btc-toolkit balance <address>` | Confirmed + unconfirmed balance of any address |
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog |
@@ -92,7 +92,7 @@ btc-toolkit tx <txid> --json
 btc-toolkit address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 ```
 
-One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR — detected offline from the prefix, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
+One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR — detected offline from the prefix and length, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
 
 ```bash
 # JSON output for scripting
@@ -105,7 +105,7 @@ btc-toolkit address <address> --json
 btc-toolkit balance 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 ```
 
-Shows the confirmed balance in BTC and satoshis and, when the address has mempool activity, the unconfirmed amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), and Taproot.
+Shows the confirmed balance in BTC and satoshis and, when the address has a non-zero unconfirmed amount, that amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), and Taproot.
 
 ```bash
 # JSON output for scripting
@@ -219,8 +219,9 @@ btc-toolkit/
 │   ├── block.py          # Block explorer
 │   ├── utxo.py           # UTXO inspector
 │   ├── tx.py             # Transaction inspector
-│   └── address.py        # Address overview + offline type detection
-├── tests/                # One file per module, CLI and completion tests — all API calls mocked
+│   ├── address.py        # Address overview + offline type detection
+│   └── py.typed          # PEP 561 marker: the package ships its types
+├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
 ├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
 ├── completions/          # Static bash + zsh completions
 ├── assets/               # Logo, social preview and the README demos
@@ -240,15 +241,15 @@ btc-toolkit/
 └── README.md
 ```
 
-Every subcommand shares one HTTP client (`api.py`) — new phases add a module + a subcommand, nothing else.
+Every subcommand shares one HTTP client (`api.py`) — a new command adds a module, a subcommand, its completions and tests; the HTTP layer stays untouched.
 
 Zero external dependencies — Python standard library only (`urllib`, `json`, `argparse`).
 
 ## Reliability
 
-- **Retry with backoff** — transient failures (HTTP 429, 5xx, network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Definitive errors (400, 404) fail immediately.
+- **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
-- **Bounded waits** — `--timeout` (default 15s) applies to each attempt.
+- **Bounded waits** — `--timeout` (default 15s) applies to each network operation of each attempt, so with retries a command can wait longer than the timeout.
 - **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
 - **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
@@ -291,7 +292,7 @@ Configuration through the environment — for Docker, CI, cron:
 | Variable | Effect |
 |---|---|
 | `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance) |
-| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`; anything else is an error, exit 2) |
+| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`; anything else is an error, exit 2; ignored when an API URL is set) |
 | `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
 | `NO_COLOR` | Any non-empty value disables colors ([no-color.org](https://no-color.org)) |
 
@@ -313,11 +314,11 @@ for out in decode_op_return("c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01
 
 Functions, result types and errors: [`docs/python-api.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/python-api.md).
 
-## Use your own node
+## Use your own Mempool instance
 
 Every command accepts `--api-url` pointing to any self-hosted
-[Mempool](https://github.com/mempool/mempool) instance (Umbrel, Start9,
-RaspiBlitz and similar node stacks ship one):
+[Mempool](https://github.com/mempool/mempool) instance, which runs on top of your
+own Bitcoin node (Umbrel, Start9, RaspiBlitz and similar node stacks offer it as an app):
 
 ```bash
 btc-toolkit balance <address> --api-url http://umbrel.local:3006/api
@@ -335,12 +336,12 @@ inspect the Bitcoin blockchain without running infrastructure. Ideal for
 learning, scripting, quick lookups, and teaching how Bitcoin data is
 structured.
 
-**This isn't** a substitute for a full node. All data comes from the
-Mempool.space API: this tool does not validate blocks, verify merkle proofs,
+**This isn't** a substitute for a full node. All data comes from a
+Mempool API (mempool.space by default, or your own instance): this tool does not validate blocks, verify merkle proofs,
 or check consensus rules. You are trusting the API's view of the chain —
 that's the explicit trade-off for requiring zero infrastructure. For
 sovereign, trustless verification, run [Bitcoin Core](https://bitcoincore.org)
-and query your own node.
+and query it directly.
 
 ## Roadmap
 

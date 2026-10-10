@@ -65,11 +65,12 @@ The package depends on the Python standard library only. There is no
 ## Verifying releases
 
 Releases from 1.5.0 on are built and published by GitHub Actions through PyPI
-Trusted Publishing, with PEP 740 attestations that anyone can verify.
+Trusted Publishing, with PEP 740 attestations that anyone can verify; from
+1.6.1 on, every file attached to a GitHub Release also carries a Sigstore bundle.
 Every release is a git tag `vX.Y.Z` matching the version in `pyproject.toml`
 and `btc_toolkit/__init__.py`. The published sdist on PyPI is built from that
 tag; you can diff its contents against the repository. See
-[`docs/releases.md`](docs/releases.md) for the exact process and how to verify
+[`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md) for the exact process and how to verify
 a package before installing it.
 
 ## Reporting a vulnerability

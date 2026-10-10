@@ -19,7 +19,8 @@ including them is fine.
 2. Make your change, with tests (see below).
 3. Open a pull request against `main`. Every pull request runs the full CI:
    the test suite on Python 3.11–3.14 (Linux) and on macOS and Windows, a test of
-   the built wheel, `ruff`, `mypy --strict` and CodeQL. `main` is protected — a
+   the built wheel, `ruff`, `mypy --strict`, line and branch coverage (90% floor),
+   the Atheris fuzzer and CodeQL. `main` is protected — a
    pull request can only be merged when all required checks pass.
 4. The maintainer reviews and merges. Releases are cut from `main` by tag and
    published by GitHub Actions (see

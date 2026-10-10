@@ -21,7 +21,8 @@ PyPI is what's in the repository.
 1. Changes land on `main` through a pull request. `main` is protected: the test
    matrix must be green and admins cannot bypass it. CI runs the suite on
    Python 3.11–3.14 (plus macOS and Windows), installs and tests the **built
-   wheel**, verifies it declares zero dependencies, and lints.
+   wheel**, verifies it declares zero dependencies, lints and type-checks,
+   measures coverage, and runs CodeQL and the fuzzer.
 2. The maintainer pushes a tag `vX.Y.Z` on the merge commit.
 3. The [`release`](https://github.com/devdavidejesus/btc-toolkit/blob/main/.github/workflows/release.yml)
    workflow checks that the tag points to a commit on `main` and matches the

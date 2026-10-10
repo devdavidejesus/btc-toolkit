@@ -25,7 +25,7 @@ The JSON output is a contract:
 |---|---|---|
 | `0` | Success | object printed |
 | `1` | Network / API / runtime failure (incl. not found) | error object printed |
-| `2` | Invalid user input (bad txid, address, height, flag) | error object printed |
+| `2` | Invalid user input (bad txid, address or height) | error object printed |
 
 In batch mode the exit code is the **worst** code across all items.
 
