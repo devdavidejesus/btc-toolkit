@@ -51,6 +51,13 @@ Or isolated, via [pipx](https://pipx.pypa.io):
 pipx install btc-toolkit
 ```
 
+Or with [uv](https://docs.astral.sh/uv/): run it once without installing anything, or install it as a tool:
+
+```bash
+uvx btc-toolkit block 0
+uv tool install btc-toolkit
+```
+
 Or via [Homebrew](https://brew.sh) on macOS and Linux, with shell completion included:
 
 ```bash
