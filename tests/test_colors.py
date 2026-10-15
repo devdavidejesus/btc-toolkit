@@ -31,6 +31,11 @@ class TestColors(unittest.TestCase):
     def test_pipe_has_no_color(self):
         self._reload(False, {})
         self.assertEqual(colors.green("x"), "x")
+        self.assertEqual(colors.orange("x"), "x")
+
+    def test_orange_is_the_256_colour_bitcoin_orange(self):
+        self._reload(True, {})
+        self.assertEqual(colors.orange("x"), "\033[38;5;208mx\033[0m")
 
 
 if __name__ == "__main__":

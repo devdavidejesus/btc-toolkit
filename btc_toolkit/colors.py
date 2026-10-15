@@ -34,6 +34,11 @@ def cyan(t: str) -> str:
     return _c("36", t)
 
 
+def orange(t: str) -> str:
+    """Bitcoin orange, from the 256-colour palette (#ff8700): the banner."""
+    return _c("38;5;208", t)
+
+
 def dim(t: str) -> str:
     return _c("2", t)
 

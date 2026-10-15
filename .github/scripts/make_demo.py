@@ -48,6 +48,8 @@ FONTS = [  # (path, regular index, bold path, bold index)
      "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 0),
 ]
 
+ANSI_256 = {208: (255, 135, 0)}  # the banner's Bitcoin orange
+
 SGR = re.compile(r"\x1b\[([0-9;]*)m")
 OTHER_ESCAPES = re.compile(r"\x1b\[[0-9;?]*[A-Za-ln-z]")
 
@@ -95,8 +97,13 @@ def parse(text: str) -> list[Line]:
         if m is None:
             break
         pos = m.end()
-        for code in [int(c) if c else 0 for c in m.group(1).split(";")]:
-            if code == 0:
+        codes = [int(c) if c else 0 for c in m.group(1).split(";")]
+        while codes:
+            code = codes.pop(0)
+            if code == 38 and codes[:1] == [5] and len(codes) > 1:  # 256-colour foreground
+                fg = ANSI_256.get(codes[1], FG)
+                del codes[:2]
+            elif code == 0:
                 fg, bold, dim = None, False, False
             elif code == 1:
                 bold = True
