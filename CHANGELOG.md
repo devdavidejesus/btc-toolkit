@@ -6,6 +6,12 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-10-15
+
+Four new commands (`verify`, `decode`, `validate`, `inscription`), `tx --inputs/--outputs`, and fixes from two
+independent audits. No command or option is removed and the `--json` output only gains keys; the changes in
+behavior are listed under Changed.
+
 ### Added
 - `verify <txid>`: checks a transaction is in a block by computation instead of trusting the API's "confirmed". It
   recomputes the txid from the raw transaction, the Merkle root from the proof (refusing any pair of nodes that is
@@ -267,7 +273,8 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
-[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.2...HEAD
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.6.2...v1.7.0
