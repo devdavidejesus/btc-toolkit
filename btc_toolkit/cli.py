@@ -9,8 +9,10 @@ Usage:
     btc-toolkit <command> <item> [--network mainnet|testnet|signet] [--json]
                 [--api-url URL] [--timeout SECONDS] [--file PATH]
 
-Commands: opreturn, tx, address, balance, fees, block, utxo. Every inspecting
-command also reads one item per line from stdin (-) or --file.
+Commands: opreturn, tx, address, balance, fees, block, utxo, verify, inscription
+(read the chain through the API) and validate, decode (offline). Every command
+that takes a txid, address or block also reads one item per line from stdin (-)
+or --file; decode reads one raw transaction.
 Run `btc-toolkit <command> --help` for command-specific options.
 """
 
@@ -24,14 +26,19 @@ from . import __version__
 from . import colors as c
 import os
 
-from .api import set_api_base, set_timeout, MempoolAPIError, SUPPORTED_NETWORKS
-from .opreturn import decode_op_return, TransactionNotFoundError
+from .api import custom_api_in_use, set_api_base, set_timeout, MempoolAPIError, NotFoundError, SUPPORTED_NETWORKS
+from .opreturn import decode_op_return, TransactionNotFoundError, _validate_txid
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
 from .block import get_block, BlockNotFoundError
 from .utxo import get_utxos
-from .tx import get_tx
+from .tx import get_tx, TxInput, TxOutput
 from .address import get_address_overview
+from .encoding import parse_address
+from .inscription import get_inscriptions
+from .rawtx import decode_tx, parse_hex
+from .verify import STRONG_DIFFICULTY, NotConfirmedError, VerificationError, format_difficulty, verify_tx
+from .api import get_text
 
 
 BANNER = r"""
@@ -52,7 +59,9 @@ _BIDI_CONTROLS = {"\u061c", "\u200e", "\u200f", *map(chr, range(0x202A, 0x202F))
 
 
 def _explorer_url(network: str, kind: str, ident: str) -> str | None:
-    """mempool.space link for the network; None for a custom API (its explorer is unknown)."""
+    """mempool.space link for the network; None with your own API (its explorer is unknown, and links leak)."""
+    if custom_api_in_use():
+        return None
     base = _EXPLORER.get(network)
     return f"{base}/{kind}/{ident}" if base else None
 
@@ -60,20 +69,28 @@ def _explorer_url(network: str, kind: str, ident: str) -> str | None:
 def _print_link(network: str, kind: str, ident: str, prefix: str = "") -> None:
     url = _explorer_url(network, kind, ident)
     if url:
+        url = _terminal_safe(url)  # ident can be user input (an address that failed lookup)
         print(f"  {prefix}{c.dim(url) if not prefix else url}" + ("" if prefix else "\n"))
+
+
+def _short(text: str, head: int = 8, tail: int = 8) -> str:
+    """Shorten a long hash for a header line; short (often invalid) input is shown whole."""
+    return text if len(text) <= head + tail + 1 else f"{text[:head]}...{text[-tail:]}"
 
 
 def _terminal_safe(text: str) -> str:
     """
-    Escape control characters before printing on-chain text to a terminal.
+    Escape control characters before printing untrusted text to a terminal.
 
-    Anyone can write an OP_RETURN. Without this, a message could carry ANSI/OSC
-    escape sequences (rewrite the screen, the window title, links) or bidi
-    controls that reorder what is displayed. They are shown escaped (\\x1b).
+    Anyone can write an OP_RETURN, an API can be hostile or broken, and items
+    read with --file may come from someone else. Without this, such text could
+    carry ANSI/OSC escape sequences (rewrite the screen, the window title,
+    links) or bidi controls that reorder what is displayed. They are shown
+    escaped (\\x1b). Used for on-chain text, error messages and echoed input.
     """
     return "".join(
         ch.encode("unicode_escape").decode("ascii")
-        if unicodedata.category(ch) == "Cc" or ch in _BIDI_CONTROLS else ch
+        if unicodedata.category(ch) in ("Cc", "Cs") or ch in _BIDI_CONTROLS else ch
         for ch in text
     )
 
@@ -91,7 +108,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · opreturn · Mempool.space API\n"))
 
-    txid_short = f"{args.txid[:8]}...{args.txid[-8:]}"
+    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -103,10 +120,10 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
         _print_link(args.network, "tx", args.txid, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if not results:
@@ -117,6 +134,8 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
 
     for r in results:
         print(f"  {c.bold(f'Output #{r.vout_index}')}")
+        if r.protocol:
+            print(f"  ├─ Protocol: {c.cyan(_PROTOCOL_NAMES.get(r.protocol, r.protocol))}")
         print(f"  ├─ Size:     {r.size} bytes")
         hex_preview = r.raw_hex[:64] + ("…" if len(r.raw_hex) > 64 else "")
         print(f"  ├─ Hex:      {c.dim(hex_preview or '(empty)')}")
@@ -132,15 +151,22 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     return 0
 
 
+_PROTOCOL_NAMES = {
+    "runes": "Runes (Runestone)",
+    "omni": "Omni Layer",
+    "witness_commitment": "SegWit witness commitment (BIP 141)",
+}
+
+
 def _opreturn_raw(args: argparse.Namespace) -> int:
     """--raw: only the payload hex, one line per OP_RETURN output; errors on stderr."""
     try:
         results = decode_op_return(args.txid, args.network)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 2
     except MempoolAPIError as e:  # includes TransactionNotFoundError
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 1
     for r in results:
         print(r.raw_hex)
@@ -158,7 +184,7 @@ def _opreturn_json(args: argparse.Namespace) -> int:
         return 1
 
     output = {
-        "txid": args.txid,
+        "txid": args.txid.strip().lower(),  # valid by now; same form as outputs[].txid
         "network": args.network,
         "op_return_count": len(results),
         "outputs": [r.to_dict() for r in results],
@@ -181,7 +207,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -192,10 +218,10 @@ def _cmd_balance(args: argparse.Namespace) -> int:
         _print_link(args.network, "address", args.address, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     confirmed_btc = bal.sats_to_btc(bal.confirmed_sats)
@@ -251,7 +277,7 @@ def _cmd_fees(args: argparse.Namespace) -> int:
     try:
         est = get_fees(args.network)
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
 
     print(f"  {c.bold('Recommended fee rates (sat/vB):')}\n")
@@ -266,7 +292,7 @@ def _cmd_fees(args: argparse.Namespace) -> int:
     print(f"  ├─ Size:         {est.mempool_vsize_mb:.2f} vMB")
     print(f"  └─ ~Blocks to clear: {est.blocks_to_clear:.1f}")
     print()
-    if args.network in _EXPLORER:
+    if args.network in _EXPLORER and not custom_api_in_use():
         print(f"  {c.dim(_EXPLORER[args.network])}\n")
     return 0
 
@@ -294,20 +320,20 @@ def _cmd_block(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · block · Mempool.space API\n"))
 
-    print(f"  {c.bold('Block:')}   {args.ref}")
+    print(f"  {c.bold('Block:')}   {_terminal_safe(args.ref)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
     try:
         blk = get_block(args.ref, args.network)
     except BlockNotFoundError:
-        print(f"  {c.red('✗')} Block not found: {args.ref}\n")
+        print(f"  {c.red('✗')} Block not found: {_terminal_safe(args.ref)}\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     hash_short = f"{blk.hash[:16]}...{blk.hash[-8:]}"
@@ -359,7 +385,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -369,10 +395,10 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
         print(f"  {c.red('✗')} Address not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if not us.utxos:
@@ -433,21 +459,21 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · tx · Mempool.space API\n"))
 
-    txid_short = f"{args.txid[:8]}...{args.txid[-8:]}"
+    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
     try:
-        tx = get_tx(args.txid, args.network)
+        tx = get_tx(args.txid, args.network, inputs=args.inputs, outputs=args.outputs)
     except TransactionNotFoundError:
         print(f"  {c.red('✗')} Transaction not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if tx.confirmed:
@@ -488,13 +514,52 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     print(f"  ├─ Version:    {tx.version}")
     print(f"  └─ Locktime:   {tx.locktime}")
     print()
-    _print_link(args.network, "tx", args.txid)
+    if tx.inputs is not None:
+        _print_inputs(tx.inputs)
+    if tx.outputs is not None:
+        _print_outputs(tx.outputs)
+    _print_link(args.network, "tx", tx.txid)
     return 0
+
+
+def _print_inputs(inputs: list[TxInput]) -> None:
+    print(f"  {c.bold('Inputs:')}\n")
+    for n, i in enumerate(inputs):
+        corner = "└─" if n == len(inputs) - 1 else "├─"
+        bar = "  " if n == len(inputs) - 1 else "│ "
+        if i.is_coinbase:
+            print(f"  {corner} #{i.index}  {c.cyan('coinbase')} (new coins: block reward + fees)")
+            continue
+        seq = f"seq {i.sequence:#010x}" + (" · RBF" if i.sequence < 0xFFFFFFFE else "")
+        print(f"  {corner} #{i.index}  {i.value:,} sats  {i.address or c.dim('(no address)')}  {c.dim(i.script_type)}")
+        print(f"  {bar}    {c.dim(f'spends {i.prev_txid}:{i.prev_vout} · {seq}')}")
+    print()
+
+
+def _print_outputs(outputs: list[TxOutput]) -> None:
+    print(f"  {c.bold('Outputs:')}\n")
+    for n, o in enumerate(outputs):
+        corner = "└─" if n == len(outputs) - 1 else "├─"
+        bar = "  " if n == len(outputs) - 1 else "│ "
+        print(f"  {corner} #{o.index}  {o.value:,} sats  {o.address or c.dim('(no address)')}  {c.dim(o.script_type)}")
+        if o.spent is None:
+            continue
+        if o.script_type == "OP_RETURN":
+            state = c.dim("unspendable (OP_RETURN)")
+        elif not o.spent:
+            state = c.green("unspent")
+        elif o.spending_txid:
+            vin = f":{o.spending_vin}" if o.spending_vin is not None else ""
+            state = c.yellow(f"spent by {o.spending_txid}{vin}")
+        else:
+            state = c.yellow("spent")
+        print(f"  {bar}    {state}")
+    print()
 
 
 def _tx_json(args: argparse.Namespace) -> int:
     try:
-        tx = get_tx(args.txid, args.network)
+        tx = get_tx(args.txid, args.network, inputs=args.inputs, outputs=args.outputs)
     except ValueError as e:  # invalid input -> exit 2, same as text mode
         print(json.dumps({"error": str(e), "txid": args.txid}, indent=_indent()))
         return 2
@@ -521,7 +586,7 @@ def _cmd_address(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -531,10 +596,10 @@ def _cmd_address(args: argparse.Namespace) -> int:
         print(f"  {c.red('✗')} Address not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     bal = ov.balance
@@ -571,6 +636,253 @@ def _address_json(args: argparse.Namespace) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# validate subcommand (offline)
+# ──────────────────────────────────────────────────────────────────────
+
+def _header(command: str, label: str, value: str, network: str, source: str = "Mempool.space API") -> None:
+    print(c.cyan(BANNER))
+    print(c.dim(f"  btc-toolkit v{__version__} · {command} · {source}\n"))
+    print(f"  {c.bold(label)} {_terminal_safe(value)}")
+    print(f"  {c.bold('Network:')} {network}")
+    print(f"  {'─' * 48}\n")
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    address = args.address.strip()
+    try:
+        if not address:
+            raise ValueError("Address cannot be empty")
+        parsed = parse_address(address, args.network)
+    except ValueError as e:
+        if args.json_output:
+            print(json.dumps({"error": f"Invalid address: {e}", "address": args.address, "valid": False},
+                             indent=_indent()))
+        else:
+            _header("validate", "Address:", address, args.network, source="offline")
+            print(f"  {c.red('✗')} Invalid: {_terminal_safe(str(e))}\n")
+        return 2
+    if args.json_output:
+        print(json.dumps({"network": args.network, "valid": True, **parsed.to_dict()}, indent=_indent()))
+        return 0
+    _header("validate", "Address:", parsed.address, args.network, source="offline")
+    print(f"  {c.green('✓')} Valid {parsed.to_dict()['chain']} address — checksum verified, nothing sent anywhere\n")
+    print(f"  ├─ Type:     {c.cyan(parsed.address_type)}")
+    if parsed.witness_version is not None:
+        print(f"  ├─ Witness:  version {parsed.witness_version}")
+        print(f"  └─ Program:  {parsed.program.hex()}")
+    else:
+        print(f"  └─ Hash160:  {parsed.program.hex()}")
+    print()
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# inscription subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_inscription(args: argparse.Namespace) -> int:
+    try:
+        found = get_inscriptions(args.txid, args.network)
+        error, code = None, 0
+    except TransactionNotFoundError as e:
+        error, code = str(e), 1
+    except MempoolAPIError as e:
+        error, code = f"API error: {e}", 1
+    except ValueError as e:
+        error, code = str(e), 2
+    if args.json_output:
+        if error is not None:
+            print(json.dumps({"error": error.removeprefix("API error: "), "txid": args.txid}, indent=_indent()))
+            return code
+        print(json.dumps({"network": args.network, "txid": args.txid.strip().lower(),
+                          "inscription_count": len(found), "inscriptions": [e.to_dict() for e in found]},
+                         indent=_indent()))
+        return 0
+    _header("inscription", "TXID:   ", _short(args.txid), args.network)
+    if error is not None:
+        print(f"  {c.red('✗')} {_terminal_safe(error)}\n")
+        return code
+    if not found:
+        print(f"  {c.yellow('⚠')}  No inscription envelope found in this transaction's inputs.\n")
+        return 0
+    print(f"  {c.green('✓')} Found {len(found)} inscription envelope(s):\n")
+    for env in found:
+        print(f"  {c.bold(env.inscription_id)}")
+        print(f"  ├─ Input:        #{env.input_index}")
+        print(f"  ├─ Content type: {_terminal_safe(env.content_type or '(none)')}")
+        if env.content_encoding:
+            print(f"  ├─ Encoding:     {_terminal_safe(env.content_encoding)}")
+        if env.metaprotocol:
+            print(f"  ├─ Metaprotocol: {_terminal_safe(env.metaprotocol)}")
+        for parent in env.parents:
+            print(f"  ├─ Parent:       {parent}")
+        if env.delegate:
+            print(f"  ├─ Delegate:     {env.delegate}")
+        if env.pointer is not None:
+            print(f"  ├─ Pointer:      {env.pointer}")
+        text = env.body_text
+        corner = "├─" if text is not None else "└─"
+        print(f"  ├─ Body:         {len(env.body):,} bytes")
+        print(f"  {corner} SHA-256:      {c.dim(env.body_sha256)}")
+        if text is not None:
+            preview = text if len(text) <= 300 else text[:300] + "…"
+            print(f"  └─ Text:         {c.green(_terminal_safe(preview))}")
+        print()
+    print(f"  {c.dim('Envelope detection, not the ord index: no inscription numbers, sats or owners.')}\n")
+    _print_link(args.network, "tx", args.txid.strip().lower())
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# decode subcommand (offline, or the raw tx of a txid)
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_decode(args: argparse.Namespace) -> int:
+    source = "offline"
+    try:
+        if args.decode_txid is not None:
+            if args.rawtx is not None:
+                raise ValueError("pass either a raw transaction or --txid, not both")
+            txid = _validate_txid(args.decode_txid)
+            try:
+                text = get_text(f"/tx/{txid}/hex", args.network)
+            except NotFoundError as e:
+                raise TransactionNotFoundError(f"Transaction not found: {txid}") from e
+            source = "Mempool.space API"
+        elif args.rawtx is None or args.rawtx == "-":
+            if sys.stdin is None or (args.rawtx is None and sys.stdin.isatty()):
+                raise ValueError("missing raw transaction: pass the hex, pipe it via stdin, or use --txid")
+            try:
+                text = sys.stdin.read().replace("\ufeff", "")
+            except OSError as e:
+                raise ValueError(f"cannot read stdin: {e}") from None
+        else:
+            text = args.rawtx
+        if args.decode_txid is None:
+            text = text.strip().removeprefix("0x").removeprefix("0X")
+            if len(text) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in text):
+                raise ValueError("this looks like a txid, not a raw transaction: use  btc-toolkit decode --txid <txid>")
+        try:
+            tx = decode_tx(parse_hex(text), args.network)
+        except ValueError as e:
+            if args.decode_txid is not None:  # the API's bytes are malformed: an API problem, not the user's input
+                raise MempoolAPIError(f"the raw transaction from the API does not decode: {e}") from None
+            raise
+        if args.decode_txid is not None and tx.txid != txid:
+            raise MempoolAPIError(f"the raw transaction from the API hashes to {tx.txid}, not to {txid}")
+    except (TransactionNotFoundError, MempoolAPIError) as e:
+        return _decode_error(args, str(e), 1)
+    except ValueError as e:
+        return _decode_error(args, str(e), 2)
+
+    if args.json_output:
+        print(json.dumps({"network": args.network, **tx.to_dict()}, indent=_indent()))
+        return 0
+    _header("decode", "TXID:   ", f"{tx.txid[:8]}...{tx.txid[-8:]}", args.network, source=source)
+    if args.decode_txid is not None:
+        print(f"  {c.green('✓')} The raw transaction hashes to the txid asked for (recomputed locally)\n")
+    print(f"  ├─ TXID:       {tx.txid}")
+    if tx.segwit:
+        print(f"  ├─ WTXID:      {tx.wtxid}")
+    print(f"  ├─ Version:    {tx.version}  ·  Locktime: {tx.locktime}" + ("  ·  RBF" if tx.is_rbf else ""))
+    print(f"  ├─ Size:       {tx.size:,} bytes  ·  Weight: {tx.weight:,} WU  ·  vSize: {tx.vsize:,} vB")
+    print(f"  ├─ Total out:  {tx.total_output:,} sats")
+    fee_note = "unknown: a raw transaction does not carry the values it spends (once broadcast: tx)"
+    print(f"  └─ Fee:        {c.dim(fee_note)}\n")
+    print(f"  {c.bold('Inputs:')}\n")
+    for n, i in enumerate(tx.inputs):
+        corner = "└─" if n == len(tx.inputs) - 1 else "├─"
+        if i.is_coinbase:
+            print(f"  {corner} #{n}  {c.cyan('coinbase')}")
+        else:
+            wit = f" · witness: {len(i.witness)} item(s)" if i.witness else ""
+            print(f"  {corner} #{n}  spends {i.prev_txid[:16]}…:{i.prev_vout}  "
+                  f"{c.dim(f'seq {i.sequence:#010x}{wit}')}")
+    print(f"\n  {c.bold('Outputs:')}\n")
+    for n, o in enumerate(tx.outputs):
+        corner = "└─" if n == len(tx.outputs) - 1 else "├─"
+        print(f"  {corner} #{n}  {o.value:,} sats  {o.address or c.dim('(no address)')}  {c.dim(o.script_type)}")
+    print()
+    return 0
+
+
+def _decode_error(args: argparse.Namespace, message: str, code: int) -> int:
+    if args.json_output:
+        print(json.dumps({"error": message, **({"txid": args.decode_txid} if args.decode_txid is not None else {})},
+                         indent=_indent()))
+    else:
+        _header("decode", "Input:  ", _short(args.decode_txid or args.rawtx or "(stdin)"), args.network,
+                source="Mempool.space API" if args.decode_txid is not None else "offline")
+        print(f"  {c.red('✗')} {_terminal_safe(message)}\n")
+    return code
+
+
+# ──────────────────────────────────────────────────────────────────────
+# verify subcommand
+# ──────────────────────────────────────────────────────────────────────
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    try:
+        v = verify_tx(args.txid, args.network)
+        error, code = None, 0
+    except TransactionNotFoundError as e:
+        error, code = str(e), 1
+    except (NotConfirmedError, VerificationError) as e:
+        error, code = str(e), 1
+    except MempoolAPIError as e:
+        error, code = f"API error: {e}", 1
+    except ValueError as e:
+        error, code = str(e), 2
+    if args.json_output:
+        if error is not None:
+            print(json.dumps({"error": error.removeprefix("API error: "), "txid": args.txid, "verified": False},
+                             indent=_indent()))
+            return code
+        print(json.dumps({"network": args.network, **v.to_dict()}, indent=_indent()))
+        return 0
+    _header("verify", "TXID:   ", _short(args.txid), args.network)
+    if error is not None:
+        print(f"  {c.red('✗')} {_terminal_safe(error)}\n")
+        return code
+    where = f"block #{v.block_height:,} ({v.block_time_utc})"
+    if v.work == "strong":
+        print(f"  {c.green('✓ VERIFIED')} — included in {where}\n")
+    else:
+        print(f"  {c.yellow('⚠ CONSISTENT, WEAK WORK')} — the proof leads to {where}\n")
+    print(f"  {c.dim(f'Block {v.block_hash} (height as reported by the API)')}\n")
+    for n, (name, detail) in enumerate(v.checks):
+        corner = "└─" if n == len(v.checks) - 1 else "├─"
+        bar = "  " if n == len(v.checks) - 1 else "│ "
+        print(f"  {corner} {c.green('✓')} {name}")
+        print(f"  {bar}   {c.dim(detail)}")
+    print()
+    for line in _verify_notes(v.work, args.network):
+        print(f"  {c.dim(line)}")
+    print()
+    _print_link(args.network, "block", v.block_hash)
+    return 0
+
+
+def _verify_notes(work: str, network: str) -> list[str]:
+    strong = format_difficulty(STRONG_DIFFICULTY)
+    if work == "strong":
+        return ["Checked by computation from raw bytes, not taken from the API. Forging this header would",
+                f"take difficulty {strong}+ of work. The block height is the API's, and only",
+                "a full node proves the block is in the chain everyone follows."]
+    if network == "mainnet":
+        why = [f"The header's difficulty is below {strong}: an old block, or a cheap forgery."]
+    elif network == "signet":
+        why = ["On signet difficulty can be minimal, and block signatures are not checked."]
+    elif network == "testnet":
+        why = ["On testnet difficulty can be minimal."]
+    else:
+        why = ["The chain behind your API is unknown: if it serves mainnet, pass both --api-url <url> and",
+               "-n mainnet (-n alone switches to mempool.space)."]
+    return why + ["Every hash checks out, but this much work is cheap enough to fake. Treat it as consistency,",
+                  "not proof. Only a full node proves the block is in the chain everyone follows."]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # argument parser
 # ──────────────────────────────────────────────────────────────────────
 
@@ -600,7 +912,7 @@ def _add_common_flags(parser: argparse.ArgumentParser, batch: bool = False) -> N
     parser.add_argument(
         "--api-url", dest="api_url", default=None, metavar="URL",
         help="Custom Mempool instance API root (e.g. http://umbrel.local:3006/api). "
-             f"Overrides --network — your node, your rules. Env: ${ENV_API_URL}.",
+             f"Add -n to say which chain it serves (else 'custom'). Your node, your rules. Env: ${ENV_API_URL}.",
     )
     parser.add_argument(
         "--timeout", dest="timeout", type=float, default=None, metavar="SECONDS",
@@ -609,14 +921,14 @@ def _add_common_flags(parser: argparse.ArgumentParser, batch: bool = False) -> N
     if batch:
         parser.add_argument(
             "--file", dest="file", default=None, metavar="PATH",
-            help="Read one item per line from PATH (blank lines and # comments "
-                 "ignored). With --json, output is JSON Lines.",
+            help="Read one item per line from PATH (blank lines and lines starting "
+                 "with # are ignored). With --json, output is JSON Lines.",
         )
 
 
 def _add_api_url(parser: argparse.ArgumentParser) -> None:
     # kept for readability at call sites; batch-capable commands opt in below
-    _add_common_flags(parser, batch=parser.prog.split()[-1] != "fees")
+    _add_common_flags(parser, batch=parser.prog.split()[-1] not in ("fees", "decode"))
 
 
 def _positional_key(args: argparse.Namespace) -> str | None:
@@ -637,7 +949,7 @@ def _collect_items(args: argparse.Namespace, key: str | None) -> list[str] | Non
     if file_path is not None and value not in (None, "-"):
         # both a positional and --file: the file wins, positional must be '-'
         raise ValueError("use '-' as the positional when passing --file")
-    if file_path is None and sys.stdin.isatty():
+    if file_path is None and (sys.stdin is None or sys.stdin.isatty()):
         raise ValueError(f"missing {key}: pass a value, use --file, or pipe items via stdin")
     if file_path is None:
         return _clean_lines(sys.stdin)
@@ -653,9 +965,10 @@ def _clean_lines(lines: Iterable[str]) -> list[str]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="btc-toolkit",
-        description="Bitcoin CLI tools — query the network via Mempool.space. "
-                    "No Bitcoin Core required.",
-        epilog="github.com/devdavidejesus/btc-toolkit",
+        description="Bitcoin CLI tools — read the chain through the Mempool.space API (or your own instance), "
+                    "and check addresses and raw transactions offline. No Bitcoin Core required.",
+        epilog="Exit codes: 0 ok, 1 network/API failure (incl. a failed verify), 2 invalid input. "
+               "github.com/devdavidejesus/btc-toolkit",
     )
     parser.add_argument(
         "-v", "--version", action="version", version=f"%(prog)s {__version__}"
@@ -768,6 +1081,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", dest="json_output",
         help="Output as JSON.",
     )
+    p_tx.add_argument(
+        "--inputs", action="store_true",
+        help="List each input: the output it spends, its value and address.",
+    )
+    p_tx.add_argument(
+        "--outputs", action="store_true",
+        help="List each output, its address, and whether it is spent (one more request).",
+    )
     _add_api_url(p_tx)
     p_tx.set_defaults(func=_cmd_tx)
 
@@ -787,7 +1108,59 @@ def build_parser() -> argparse.ArgumentParser:
     _add_api_url(p_addr)
     p_addr.set_defaults(func=_cmd_address)
 
+    # validate (offline)
+    p_val = subparsers.add_parser(
+        "validate", help="Check an address offline: checksum, network and type. Sends nothing."
+    )
+    p_val.add_argument("address", nargs="?", default="-", help="Bitcoin address (any type), or - to read from stdin.")
+    _add_network_and_json(p_val)
+    _add_api_url(p_val)
+    p_val.set_defaults(func=_cmd_validate)
+
+    # inscription
+    p_ins = subparsers.add_parser(
+        "inscription", help="Find Ordinals inscription envelopes in a transaction's inputs."
+    )
+    p_ins.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
+    _add_network_and_json(p_ins)
+    _add_api_url(p_ins)
+    p_ins.set_defaults(func=_cmd_inscription)
+
+    # decode
+    p_dec = subparsers.add_parser(
+        "decode", help="Decode a raw transaction offline (or fetch it with --txid and check its hash)."
+    )
+    p_dec.add_argument("rawtx", nargs="?", default=None, help="Raw transaction hex, or - for stdin.")
+    p_dec.add_argument(
+        "--txid", dest="decode_txid", default=None, metavar="TXID",
+        help="Fetch the raw transaction of TXID and check that it hashes to TXID.",
+    )
+    _add_network_and_json(p_dec)
+    _add_api_url(p_dec)
+    p_dec.set_defaults(func=_cmd_decode)
+
+    # verify
+    p_ver = subparsers.add_parser(
+        "verify", help="Check a transaction is in a block by computation: its Merkle proof and the header's work."
+    )
+    p_ver.add_argument("txid", nargs="?", default="-", help="Transaction ID (64-char hex), or - for stdin.")
+    _add_network_and_json(p_ver)
+    _add_api_url(p_ver)
+    p_ver.set_defaults(func=_cmd_verify)
+
+    # `btc-toolkit <command> --help` opens with what the command does.
+    for action in subparsers._choices_actions:
+        subparsers.choices[action.dest].description = action.help
+
     return parser
+
+
+def _add_network_and_json(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-n", "--network", choices=SUPPORTED_NETWORKS, default=None,
+        help=f"Bitcoin network (default: ${ENV_NETWORK}, else mainnet).",
+    )
+    parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON.")
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -795,19 +1168,26 @@ def run(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Flags win over environment variables: --api-url, then --network, then
-    # $BTC_TOOLKIT_API_URL, then $BTC_TOOLKIT_NETWORK, then mainnet.
+    # Flags win over environment variables. The API is --api-url, else $BTC_TOOLKIT_API_URL — which -n alone
+    # overrides, to reach a public preset. The network is -n (it also names the chain of an --api-url); else
+    # "custom" (unknown) with an API URL; else $BTC_TOOLKIT_NETWORK; else mainnet.
     network_flag = getattr(args, "network", None)
-    api_url = getattr(args, "api_url", None) or (None if network_flag else os.environ.get(ENV_API_URL) or None)
-    if network_flag is None and not api_url:
+    offline = args.command == "validate" or (args.command == "decode" and getattr(args, "decode_txid", None) is None)
+    env_api_url = None if network_flag or offline else os.environ.get(ENV_API_URL) or None
+    api_url = getattr(args, "api_url", None) or env_api_url
+    if network_flag is None and api_url:
+        args.network = "custom"
+    elif network_flag is None:
         env_network = os.environ.get(ENV_NETWORK, "").strip().lower()
         if env_network and env_network not in SUPPORTED_NETWORKS:
             print(f"Error: ${ENV_NETWORK} must be one of {', '.join(SUPPORTED_NETWORKS)}.", file=sys.stderr)
             return 2
         args.network = env_network or "mainnet"
-    set_api_base(api_url)
-    if api_url:
-        args.network = "custom"
+    try:
+        set_api_base(api_url)
+    except ValueError as e:
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
+        return 2
 
     timeout = getattr(args, "timeout", None)
     if timeout is None and os.environ.get(ENV_TIMEOUT):
@@ -820,14 +1200,14 @@ def run(argv: list[str] | None = None) -> int:
         try:
             set_timeout(timeout)
         except ValueError as e:
-            print(f"Error: {e}.", file=sys.stderr)
+            print(f"Error: {_terminal_safe(str(e))}.", file=sys.stderr)
             return 2
 
     key = _positional_key(args)
     try:
         items = _collect_items(args, key)
     except (OSError, ValueError) as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 2
     if items is None:
         code: int = args.func(args)

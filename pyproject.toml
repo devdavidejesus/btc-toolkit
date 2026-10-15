@@ -31,6 +31,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/devdavidejesus/btc-toolkit"
+Documentation = "https://github.com/devdavidejesus/btc-toolkit#readme"
 Repository = "https://github.com/devdavidejesus/btc-toolkit"
 Issues = "https://github.com/devdavidejesus/btc-toolkit/issues"
 Changelog = "https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md"

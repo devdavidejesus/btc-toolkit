@@ -1,7 +1,8 @@
 name: Fuzz
 
-# Coverage-guided fuzzing (Atheris) of the parsers of untrusted data:
-# OP_RETURN scripts returned by the API, and user input. See fuzz/.
+# Coverage-guided fuzzing (Atheris) of the parsers of untrusted data: API
+# responses, scripts, raw transactions, addresses, inscription envelopes, block
+# headers, Merkle proofs, and user input. See fuzz/.
 
 on:
   push:

@@ -92,7 +92,7 @@ diff -r /tmp/verify/btc_toolkit-X.Y.Z/btc_toolkit /tmp/verify/src/btc_toolkit &&
 **Dependencies** — there is nothing to resolve:
 
 ```bash
-grep -A3 '^dependencies' /tmp/verify/src/pyproject.toml
+grep -q '^dependencies' /tmp/verify/src/pyproject.toml && echo "declares dependencies" || echo "no dependencies declared"
 ```
 
 PyPI also publishes SHA256 digests for every file on the release page; `pip`

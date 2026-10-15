@@ -105,7 +105,7 @@ class TestGetBalance(unittest.TestCase):
                 "tx_count": 0,
             },
         }
-        bal = get_balance("bc1qexample0000")
+        bal = get_balance("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
         self.assertEqual(bal.confirmed_sats, 150_000_000)
         self.assertEqual(bal.sats_to_btc(bal.confirmed_sats), "1.50000000")
 
@@ -125,7 +125,7 @@ class TestGetBalance(unittest.TestCase):
                 "tx_count": 1,
             },
         }
-        bal = get_balance("bc1qexample0000")
+        bal = get_balance("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
         self.assertEqual(bal.confirmed_sats, 100_000_000)
         self.assertEqual(bal.unconfirmed_sats, 25_000_000)
         self.assertEqual(bal.total_sats, 125_000_000)
@@ -146,7 +146,7 @@ class TestGetBalance(unittest.TestCase):
                 "tx_count": 0,
             },
         }
-        d = get_balance("bc1qexample0000").to_dict()
+        d = get_balance("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq").to_dict()
         self.assertEqual(d["confirmed"]["sats"], 100_000_000)
         self.assertEqual(d["confirmed"]["btc"], "1.00000000")
         self.assertEqual(d["total"]["btc"], "1.00000000")

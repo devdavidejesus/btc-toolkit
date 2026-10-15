@@ -28,6 +28,7 @@ class OPReturnData:
     decoded_text: str | None
     raw_bytes: bytes
     size: int
+    protocol: str | None = None  # a recognized protocol marker: runes, omni, witness_commitment
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,7 +37,25 @@ class OPReturnData:
             "raw_hex": self.raw_hex,
             "decoded_text": self.decoded_text,
             "size_bytes": self.size,
+            "protocol": self.protocol,
         }
+
+
+# Protocol markers, by the start of the scriptPubKey (hex) or of the payload.
+_RUNESTONE = "6a5d"  # OP_RETURN OP_13: a Runes "Runestone"
+_WITNESS_COMMITMENT = "6a24aa21a9ed"  # BIP 141: the coinbase output committing to the block's witnesses
+
+
+def _protocol(script_hex: str, asm: str, payload: bytes, coinbase: bool) -> str | None:
+    """Name the protocol an OP_RETURN belongs to by its marker (a prefix). Only tags; decodes nothing."""
+    script_hex = script_hex.lower()
+    if script_hex.startswith(_RUNESTONE) or asm.startswith("OP_RETURN OP_PUSHNUM_13"):
+        return "runes"
+    if coinbase and script_hex.startswith(_WITNESS_COMMITMENT):
+        return "witness_commitment"
+    if payload.startswith(b"omni"):
+        return "omni"
+    return None
 
 
 def _validate_txid(txid: str) -> str:
@@ -51,9 +70,13 @@ def fetch_transaction(txid: str, network: str = "mainnet") -> dict[str, Any]:
     """Fetch full transaction data from the Mempool.space API."""
     txid = _validate_txid(txid)
     try:
-        return as_object(get_json(f"/tx/{txid}", network), "/tx")
+        data = as_object(get_json(f"/tx/{txid}", network), "/tx")
     except NotFoundError as e:
         raise TransactionNotFoundError(f"Transaction not found: {txid}") from e
+    claimed = data.get("txid", txid)
+    if not isinstance(claimed, str) or claimed.lower() != txid:
+        raise MempoolAPIError("Unexpected response from /tx: it describes a different transaction")
+    return data
 
 
 def _is_hex(s: str) -> bool:
@@ -168,7 +191,10 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
     OP_RETURN that carries no data (raw_hex "", size 0), such as a bare
     OP_RETURN or a Runestone marker with nothing after it.
     """
+    txid = _validate_txid(txid)  # results carry the normalized (lowercase) txid
     tx_data = fetch_transaction(txid, network)
+    vin = tx_data.get("vin")
+    coinbase = isinstance(vin, list) and bool(vin) and isinstance(vin[0], dict) and vin[0].get("is_coinbase") is True
     results = []
 
     for i, vout in enumerate(field_objects(tx_data, "vout", "/tx")):
@@ -189,6 +215,8 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
                 hex_data = _extract_pushdata(raw_script[2:].lower()) or ""
 
         raw_bytes = bytes.fromhex(hex_data)
+        raw_script = vout.get("scriptpubkey", "")
+        script_hex = raw_script if isinstance(raw_script, str) and _is_hex(raw_script) else ""
         results.append(
             OPReturnData(
                 txid=txid,
@@ -197,6 +225,7 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
                 decoded_text=_decode_hex_to_text(hex_data),
                 raw_bytes=raw_bytes,
                 size=len(raw_bytes),
+                protocol=_protocol(script_hex, asm.strip(), raw_bytes, coinbase),
             )
         )
 

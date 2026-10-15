@@ -13,6 +13,7 @@ from btc_toolkit.api import set_api_base, set_timeout
 
 TXID = "f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab"
 ADDR = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+TESTNET_ADDR = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
 
 TX_DATA = {
     "txid": TXID, "version": 2, "locktime": 0, "size": 236, "weight": 617,
@@ -202,7 +203,7 @@ class TestCliAutomation(unittest.TestCase):
     def test_env_network_sets_default(self, m):
         os.environ["BTC_TOOLKIT_NETWORK"] = "signet"
         m.return_value = ADDR_DATA
-        code, out = _run(["balance", ADDR, "--json"])
+        code, out = _run(["balance", TESTNET_ADDR, "--json"])  # a signet address: mainnet ones are rejected
         self.assertEqual((code, json.loads(out)["network"]), (0, "signet"))
         self.assertEqual(m.call_args.args[1], "signet")
 
@@ -221,7 +222,7 @@ class TestCliAutomation(unittest.TestCase):
         from btc_toolkit.api import get_api_base
         os.environ["BTC_TOOLKIT_API_URL"] = "http://env.local/api"
         m.return_value = ADDR_DATA
-        code, out = _run(["balance", ADDR, "--json", "--network", "testnet"])
+        code, out = _run(["balance", TESTNET_ADDR, "--json", "--network", "testnet"])
         self.assertEqual((code, json.loads(out)["network"]), (0, "testnet"))
         self.assertEqual(get_api_base("testnet"), "https://mempool.space/testnet/api")
 
@@ -380,13 +381,13 @@ class TestBatchSurvivesNetworkFailure(unittest.TestCase):
             if "a" * 64 in req.full_url:
                 raise http.client.RemoteDisconnected("closed")
             resp = MagicMock()
-            resp.read.return_value = json.dumps(good).encode()
+            resp.read.side_effect = io.BytesIO(json.dumps(good).encode()).read
             resp.__enter__ = lambda s: s
             resp.__exit__ = MagicMock(return_value=False)
             return resp
 
         buf = io.StringIO()
-        with _patch("btc_toolkit.api.urllib.request.urlopen", side_effect=fake_urlopen), \
+        with _patch("btc_toolkit.api._urlopen", side_effect=fake_urlopen), \
                 _patch("btc_toolkit.api.time.sleep"), \
                 _patch("sys.stdin", io.StringIO(f"{'a' * 64}\n{'b' * 64}\n")), \
                 redirect_stdout(buf):

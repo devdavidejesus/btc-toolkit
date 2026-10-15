@@ -8,27 +8,37 @@ received/spent totals — plus offline address-type detection.
 Endpoint:
     GET /api/address/:address
 
-Type detection is done locally from the address prefix and length,
-following BIP 13 (P2SH), BIP 173 (bech32) and BIP 350 (bech32m).
+The address is decoded and checksum-verified locally (Base58Check, BIP 173
+bech32, BIP 350 bech32m) before the API call, and its type comes from that
+decoding: P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A (pay-to-anchor) or witness_vN.
 """
 
 from dataclasses import dataclass
 
 from typing import Any
 from .balance import get_balance, AddressBalance  # noqa: F401
+from .encoding import parse_address
 
 
 def detect_address_type(address: str, network: str = "mainnet") -> str:
     """
-    Detect the address type from its prefix and length (offline).
+    Detect the address type offline.
+
+    A valid address (checksum verified) gets its decoded type. Otherwise the
+    type is guessed from the prefix and length alone, as before 1.8.0.
 
     Mainnet uses 1 / 3 / bc1; testnet and signet share m, n / 2 / tb1. With a
     custom API (network 'custom') the chain is unknown, so the prefixes of
     every network are accepted, including regtest's bcrt1.
 
-    Returns one of: P2PKH, P2SH, P2WPKH, P2WSH, P2TR,
+    Returns one of: P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A, witness_vN,
     or 'unknown' when the shape doesn't match any known format.
     """
+    try:
+        return parse_address(address, network if network in ("mainnet", "testnet", "signet") else "custom").address_type
+    except ValueError:
+        pass
+
     a = address.strip()
     lower = a.lower()
 
@@ -86,7 +96,7 @@ def get_address_overview(address: str, network: str = "mainnet") -> AddressOverv
     mempool_stats) and adds offline type detection.
 
     Raises:
-        ValueError: If the address format is obviously invalid.
+        ValueError: If the address is invalid (checksum, network or format).
         AddressNotFoundError: If the address is not found upstream.
         MempoolAPIError: On other API errors.
     """

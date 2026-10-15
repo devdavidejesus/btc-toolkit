@@ -24,6 +24,22 @@ Query the Bitcoin network via the [Mempool.space](https://mempool.space) public 
 
 ---
 
+## Quick start
+
+```bash
+pipx install btc-toolkit        # or: pip install btc-toolkit · brew install devdavidejesus/tap/btc-toolkit
+btc-toolkit fees                # current fee rates
+btc-toolkit opreturn f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
+btc-toolkit verify c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01866b2b3e69a19   # check it is in a block
+btc-toolkit validate bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq                         # offline: nothing sent
+```
+
+Try it without installing anything: `uvx btc-toolkit block 0`.
+
+Options go **after** the command: `btc-toolkit fees --network signet`, not
+`btc-toolkit --network signet fees`. `-n` is short for `--network`, and
+`btc-toolkit <command> --help` lists every option of a command.
+
 ## Commands
 
 | Command | Description |
@@ -35,6 +51,10 @@ Query the Bitcoin network via the [Mempool.space](https://mempool.space) public 
 | `btc-toolkit fees` | Recommended fee rates + mempool backlog |
 | `btc-toolkit block <height\|hash\|latest>` | Block metadata by height, hash, or latest |
 | `btc-toolkit utxo <address>` | Unspent outputs of any address |
+| `btc-toolkit verify <txid>` | Check a transaction is in a block **by computation**: its Merkle proof and the header's proof of work |
+| `btc-toolkit decode <rawtx>` | Decode a raw transaction **offline** (or `--txid`: fetch it and check its hash) |
+| `btc-toolkit validate <address>` | Check an address **offline**: checksum, network, type — nothing is sent |
+| `btc-toolkit inscription <txid>` | Ordinals inscription envelopes in a transaction: content type, size, SHA-256, text |
 
 ## Installation
 
@@ -89,9 +109,14 @@ Shows confirmation status and block, fee and fee rate (sat/vB), total input/outp
 ![btc-toolkit tx demo](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/demo.png)
 
 ```bash
+# Every input (the output it spends, value, address) and every output (address, spent or not, and by what)
+btc-toolkit tx <txid> --inputs --outputs
+
 # JSON output for scripting
 btc-toolkit tx <txid> --json
 ```
+
+Addresses in `--inputs`/`--outputs` are computed locally from each output script, not taken from the API. With `--api-url` and no `-n`, the chain is unknown: the API's address is shown if it is a valid address (it is not checked against the script).
 
 ### address — aggregated overview
 
@@ -99,7 +124,7 @@ btc-toolkit tx <txid> --json
 btc-toolkit address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 ```
 
-One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR — detected offline from the prefix and length, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
+One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A or `witness_vN` — decoded offline from the checksum-verified address, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
 
 ```bash
 # JSON output for scripting
@@ -165,7 +190,7 @@ btc-toolkit block latest --network testnet
 btc-toolkit utxo bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
 ```
 
-Lists every UTXO sorted by value (largest first), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
+Lists UTXOs sorted by value (largest first; the first 15 by default, see `--limit`), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
 
 > **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, which has received over 80,000 outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
 
@@ -176,7 +201,7 @@ btc-toolkit utxo <address> --confirmed-only
 # Show more than 15 entries
 btc-toolkit utxo <address> --limit 50
 
-# JSON output (always includes all UTXOs)
+# JSON output (ignores --limit; --confirmed-only still applies)
 btc-toolkit utxo <address> --json
 ```
 
@@ -194,6 +219,8 @@ btc-toolkit opreturn <txid> --json
 btc-toolkit opreturn <txid> --raw
 ```
 
+Known protocol markers are named by their prefix: a Runes Runestone (`OP_RETURN OP_13`), Omni Layer (a payload starting with `omni` — a plain text message can start that way too), and the BIP 141 witness commitment in a coinbase. They are tagged, not decoded.
+
 **Seen in the wild:** the $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded with this command, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159). And the wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n).
 
 ### Transactions to Try
@@ -209,6 +236,53 @@ Real, verified OP_RETURN transactions on mainnet. Verify each one yourself on [m
 > **coinbase scriptSig** of the genesis block — NOT in an OP_RETURN output. That's a common
 > misconception. This tool reads OP_RETURN outputs only, which is the standard mechanism
 > for embedding data in Bitcoin transactions (introduced as standard in Bitcoin Core v0.9.0, March 2014).
+
+### verify — check a transaction is in a block
+
+```bash
+btc-toolkit verify c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01866b2b3e69a19
+```
+
+Instead of taking the API's "confirmed" on faith, `verify` recomputes from raw bytes:
+
+1. the **txid**, by hashing the raw transaction;
+2. the **Merkle root**, from that txid and the proof's sibling hashes — refusing any pair of nodes that is also a valid 64-byte transaction, which could pose as a node (CVE-2017-12842);
+3. the **block hash**, by hashing the 80-byte header — which must contain that root;
+4. the **proof of work**: the header hash is below the target its `bits` encode, within the network's limit.
+
+Any mismatch is `verification failed` (exit code `1`). The verdict depends only on the work proven — never on the height or date the API claims, since a forger picks those:
+
+- **`✓ VERIFIED`** (`"work": "strong"`): a mainnet header at difficulty 50 T or more. Forging one takes about 2^77.5 hashes — over a third of a block's work at October 2026's difficulty (about 133 T).
+- **`⚠ CONSISTENT, WEAK WORK`** (`"work": "weak"`): everything checks out, but the header carries less work — an older block, or testnet, signet (block signatures are not checked) or an unknown chain. That little work is cheap to fake: treat it as consistency, not proof.
+
+With your own instance, add `-n mainnet` so `verify` knows which chain it is checking: `btc-toolkit verify <txid> --api-url http://umbrel.local:3006/api -n mainnet`.
+
+What it does **not** prove: the block height (the API reports it; a header does not contain it), or that the block is in the chain everyone follows. Only a full node checks everything.
+
+### decode — a raw transaction, offline
+
+```bash
+btc-toolkit decode 0100000001...           # or pipe it: cat tx.hex | btc-toolkit decode -
+btc-toolkit decode --txid <txid>           # fetch the raw tx and check it hashes to <txid>
+```
+
+Version, inputs, outputs (with their addresses and script types), witness, locktime, txid and wtxid, size, weight and vsize — computed from the bytes. The fee is not shown: it needs the values of the outputs being spent, which a raw transaction does not carry (`tx` has it).
+
+### validate — check an address offline
+
+```bash
+btc-toolkit validate bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+```
+
+Verifies the checksum (Base58Check, or bech32 / bech32m per BIP 173 and BIP 350, tested against their official vectors), the network and the type — P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A, or `witness_vN` for future versions. Nothing is sent anywhere. `balance`, `address` and `utxo` run the same check first, so a typo is caught locally (exit code `2`) and never reaches the API. With `--api-url` and no `-n`, the chain is unknown, so an address of any network is accepted.
+
+### inscription — Ordinals envelopes
+
+```bash
+btc-toolkit inscription 6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799
+```
+
+Finds the `OP_FALSE OP_IF "ord" … OP_ENDIF` envelopes in each input's Taproot script — parsed by ord's own rules, from its source — and shows the inscription ID, content type, encoding, metaprotocol, parents, delegate, body size and SHA-256, and the text of a text inscription (control characters escaped). This is **envelope detection, not the ord index**: it does not assign inscription numbers, track sats or owners, or apply ord's "cursed" rules. The witness comes from the API: a txid does not commit to it, so it is not verified.
 
 ## Architecture
 
@@ -227,6 +301,10 @@ btc-toolkit/
 │   ├── utxo.py           # UTXO inspector
 │   ├── tx.py             # Transaction inspector
 │   ├── address.py        # Address overview + offline type detection
+│   ├── encoding.py       # Offline: bech32/bech32m, Base58Check, script types and addresses
+│   ├── rawtx.py          # Offline raw transaction decoder (legacy and SegWit)
+│   ├── verify.py         # Merkle-proof and proof-of-work verification
+│   ├── inscription.py    # Ordinals inscription envelope detection
 │   └── py.typed          # PEP 561 marker: the package ships its types
 ├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
 ├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
@@ -257,7 +335,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 - **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
 - **Bounded waits** — `--timeout` (default 15s) applies to each network operation of each attempt, so with retries a command can wait longer than the timeout.
-- **Exit codes** — `0` success, `1` network/API error, `2` invalid input. Script accordingly.
+- **Exit codes** — `0` success, `1` network/API error (including a `verify` whose checks fail, or a transaction not confirmed yet), `2` invalid input. Script accordingly.
 - **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
 ## Testing
@@ -283,14 +361,15 @@ This is the same model used by Esplora/Electrs. Don't trust this README — veri
 ## Automation
 
 btc-toolkit is built to sit inside pipelines. Every command takes `--json`,
-and the inspecting commands read **one item per line** from stdin (`-`) or a
-file (`--file`), emitting JSON Lines you can pipe straight into `jq`:
+and the commands that take a txid, address or block read **one item per line**
+from stdin (`-`) or a file (`--file`), emitting JSON Lines you can pipe straight
+into `jq` (`decode -` reads a single raw transaction from stdin):
 
 ```bash
 # many txids -> one JSON object per line
 cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'
 
-# or from a file (blank lines and # comments are ignored)
+# or from a file (blank lines and lines starting with # are ignored)
 btc-toolkit balance --file addresses.txt --json
 ```
 
@@ -298,7 +377,7 @@ Configuration through the environment — for Docker, CI, cron:
 
 | Variable | Effect |
 |---|---|
-| `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance) |
+| `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance); ignored by `validate` and by `decode` without `--txid`. With it, the chain is `custom`: to name it, pass `--api-url` and `-n` together (`-n` alone switches to the public presets) |
 | `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`; anything else is an error, exit 2; ignored when an API URL is set) |
 | `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
 | `NO_COLOR` | Any non-empty value disables colors ([no-color.org](https://no-color.org)) |
@@ -328,8 +407,13 @@ Every command accepts `--api-url` pointing to any self-hosted
 own Bitcoin node (Umbrel, Start9, RaspiBlitz and similar node stacks offer it as an app):
 
 ```bash
-btc-toolkit balance <address> --api-url http://umbrel.local:3006/api
+btc-toolkit balance <address> --api-url http://umbrel.local:3006/api -n mainnet
 ```
+
+`-n` tells btc-toolkit which chain your instance serves. Without it the chain is
+`custom` (unknown): addresses of any Bitcoin network (mainnet, testnet/signet,
+regtest) are accepted, `tx` shows the API's addresses, and `verify` reports the
+work as weak. Results never link to mempool.space when you use your own instance.
 
 With your own instance, no third party sees your queries — the public
 mempool.space API is the zero-setup default, not a requirement.
@@ -343,12 +427,14 @@ inspect the Bitcoin blockchain without running infrastructure. Ideal for
 learning, scripting, quick lookups, and teaching how Bitcoin data is
 structured.
 
-**This isn't** a substitute for a full node. All data comes from a
-Mempool API (mempool.space by default, or your own instance): this tool does not validate blocks, verify merkle proofs,
-or check consensus rules. You are trusting the API's view of the chain —
-that's the explicit trade-off for requiring zero infrastructure. For
-sovereign, trustless verification, run [Bitcoin Core](https://bitcoincore.org)
-and query it directly.
+**This isn't** a substitute for a full node. Data comes from a Mempool API
+(mempool.space by default, or your own instance), and most commands report what
+it says. Some checks don't trust it: addresses are validated offline, `decode`
+works on raw bytes, and `verify` recomputes a transaction's inclusion in a block
+— its Merkle proof and the block's proof of work — instead of taking "confirmed"
+on faith. What no command does: validate blocks, follow the most-work chain, or
+check consensus rules. For sovereign, trustless verification, run
+[Bitcoin Core](https://bitcoincore.org) and query it directly.
 
 ## Roadmap
 

@@ -6,6 +6,68 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Added
+- `verify <txid>`: checks a transaction is in a block by computation instead of trusting the API's "confirmed". It
+  recomputes the txid from the raw transaction, the Merkle root from the proof (refusing any pair of nodes that is
+  also a valid 64-byte transaction, CVE-2017-12842), the block hash from the 80-byte header that must contain that
+  root, and the header's proof of work. The verdict depends only on the work proven: "strong" (`✓ VERIFIED`) for a
+  mainnet header at difficulty 50 T or more, about 2^77.5 hashes to forge; "weak" otherwise (older blocks, testnet,
+  signet, an unknown chain), where the data is consistent but cheap to fake. It does not prove the block height or
+  that the block is in the chain everyone follows; only a full node does.
+- `decode <rawtx>`: decodes a raw transaction offline — legacy or SegWit — with txid, wtxid, size, weight, vsize,
+  every input, witness and output (address and script type). `decode --txid <txid>` fetches the raw transaction and
+  checks that it hashes to that txid.
+- `validate <address>`: checks an address offline — Base58Check, bech32 (BIP 173) or bech32m (BIP 350) checksum,
+  network and type — against the BIPs' official test vectors. Nothing is sent.
+- `inscription <txid>`: finds Ordinals inscription envelopes in a transaction's Taproot inputs and shows each one's
+  ID, content type, encoding, metaprotocol, parents, delegate, pointer, body size and SHA-256, and the text of a text
+  inscription, following ord's own parsing rules. Envelope detection, not the ord index: no inscription numbers, sats
+  or owners.
+- `tx --inputs` and `tx --outputs`: every input (the output it spends, its value and address) and every output (its
+  address, and whether it is spent and by which transaction). Addresses are computed locally from each script.
+- `opreturn` names known protocol markers, by prefix, in a new `protocol` key: `runes` (a Runestone), `omni`, and
+  `witness_commitment` (BIP 141, in a coinbase). They are tagged, not decoded.
+- `-n` now works together with `--api-url`, to say which chain your own instance serves (before, `--api-url` always
+  meant an unknown, `custom` chain). Results never link to mempool.space when you use your own instance. `validate`,
+  and `decode` without `--txid`, ignore `$BTC_TOOLKIT_API_URL`: they are offline.
+- Address types now include P2A (pay-to-anchor) and future witness versions (`witness_vN`).
+- The fuzzer covers every new parser (raw transactions, addresses, scripts, inscription envelopes, block headers,
+  Merkle proofs), and the weekly live test checks `verify`, `decode`, `validate`, `inscription` and `tx --outputs`
+  against real transactions.
+
+### Changed
+- `balance`, `address` and `utxo` validate the address offline, checksum included, before any request: a typo or
+  an address from another network is invalid input (exit code 2) and is never sent to the API. It used to reach the
+  API and come back as an HTTP 400 (exit code 1).
+- `address` reports the type decoded from the address itself.
+
+### Security
+- Text mode escapes control characters everywhere, not only in on-chain text: error messages (which can carry text
+  from the API, such as an HTTP status reason), and input echoed back (a txid, address or block reference, possibly
+  read from a `--file` someone else wrote). Block hashes, previous-block hashes, merkle roots and UTXO txids from the
+  API must be 64 hex digits; anything else is an API error (exit code 1). JSON output was already escaped.
+
+### Fixed
+- A malformed `--api-url` or `$BTC_TOOLKIT_API_URL` (no `http://` or `https://`, no host, a bad port, spaces,
+  non-ASCII characters, a user name or password, a query or a fragment) is now invalid input, exit code 2, with a clear
+  message, before any request. A URL without a scheme used to end in a traceback; the others were retried and
+  reported as connection errors.
+- A response is read with limits: at most 32 MB, and within about twice the timeout. A server sending one byte at a
+  time could otherwise keep the tool waiting forever.
+- `tx` and the other transaction commands check that the API's answer is about the txid asked for.
+- A lone surrogate in input (an undecodable byte) is escaped like any control character, instead of a traceback on a
+  strict UTF-8 terminal.
+- A JSON response nested too deeply to parse is an API error (exit code 1) instead of a traceback.
+- `tx` no longer flags a coinbase transaction as RBF: a coinbase input cannot be replaced, whatever its sequence.
+- An address with non-ASCII letters is rejected locally (exit code 2) with the usual message, instead of an
+  encoding error.
+- `opreturn --json` reports the txid normalized (lowercase, trimmed) at the top level and in `outputs[].txid`; both
+  used to echo the input as typed.
+- Documentation: the JSON error keys per command, how amounts and rates are typed, what `--limit` and
+  `--confirmed-only` do to `utxo` output, and that only lines starting with `#` are comments in a `--file`.
+- README: a quick start, with the rule that options go after the command (`btc-toolkit fees --network signet`), and
+  how to install and run with [uv](https://docs.astral.sh/uv/) (`uvx btc-toolkit`, `uv tool install btc-toolkit`).
+
 ## [1.7.2] — 2026-10-10
 
 A documentation release: the code is the same as in 1.7.1. It republishes the README on PyPI with the

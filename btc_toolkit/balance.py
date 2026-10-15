@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from typing import Any
 from .api import get_json, as_object, field_int, field_object, field_str, NotFoundError
+from .encoding import parse_address
 
 SATS_PER_BTC = 100_000_000
 
@@ -70,13 +71,13 @@ class AddressBalance:
         }
 
 
-def _validate_address(address: str) -> str:
+def _validate_address(address: str, network: str = "custom") -> str:
     """
-    Basic sanity check on a Bitcoin address.
+    Validate a Bitcoin address offline, checksum included, and normalize it.
 
-    This is a lightweight format guard, not full validation — the
-    Mempool.space API is the source of truth and will reject malformed
-    addresses. We only catch obviously bad input early.
+    Bech32/bech32m (BIP 173/350) and Base58Check are verified locally, so a
+    typo is caught here (exit code 2) and never sent to the API. The address
+    must belong to `network` ('custom' — an --api-url — accepts any chain).
     """
     address = address.strip()
     if not address:
@@ -87,10 +88,13 @@ def _validate_address(address: str) -> str:
     if len(address) < 14 or len(address) > 100:
         raise ValueError(f"Invalid address length: {address}")
 
-    if not all(c.isalnum() for c in address):
+    if not all(c.isascii() and c.isalnum() for c in address):  # isalnum() alone accepts non-ASCII letters
         raise ValueError(f"Invalid characters in address: {address}")
 
-    return address
+    try:
+        return parse_address(address, network).address
+    except ValueError as e:
+        raise ValueError(f"Invalid address {address}: {e}") from None
 
 
 def get_balance(address: str, network: str = "mainnet") -> AddressBalance:
@@ -105,11 +109,11 @@ def get_balance(address: str, network: str = "mainnet") -> AddressBalance:
         An AddressBalance with confirmed and unconfirmed amounts.
 
     Raises:
-        ValueError: If the address format is obviously invalid.
+        ValueError: If the address is invalid (checksum, network or format).
         AddressNotFoundError: If the address is not found upstream.
         MempoolAPIError: On other API errors.
     """
-    address = _validate_address(address)
+    address = _validate_address(address, network)
 
     try:
         data = as_object(get_json(f"/address/{address}", network), "/address")

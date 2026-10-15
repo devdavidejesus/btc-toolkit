@@ -4,10 +4,13 @@ does not control: API responses, scripts inside them, and user input.
 
 Properties checked:
 - the OP_RETURN script parsers never raise;
-- every API parser (decode_op_return, get_tx, get_balance, get_utxos,
-  get_fees, get_block), fed arbitrary JSON, only raises MempoolAPIError
-  (a clean, exit-code-1 error) — never a crash, never a misleading ValueError;
-- input validators only raise ValueError (exit code 2).
+- every API parser (decode_op_return, get_tx with inputs/outputs, get_balance,
+  get_utxos, get_fees, get_block, get_inscriptions), fed arbitrary JSON, only
+  raises MempoolAPIError (a clean, exit-code-1 error) — never a crash, never a
+  misleading ValueError;
+- input validators and offline decoders (addresses, raw transactions, block
+  headers, Merkle proofs) only raise ValueError (exit code 2);
+- script type detection and inscription envelope parsing never raise.
 
 Run from the repository root:
     pip install atheris && PYTHONPATH=. python fuzz/fuzz_parsers.py -max_total_time=60
@@ -20,7 +23,7 @@ from unittest.mock import patch
 import atheris
 
 with atheris.instrument_imports():
-    from btc_toolkit import address, balance, block, fees, opreturn, tx, utxo
+    from btc_toolkit import address, balance, block, encoding, fees, inscription, opreturn, rawtx, tx, utxo, verify
     from btc_toolkit.api import MempoolAPIError
 
 TXID = "0" * 64
@@ -63,7 +66,7 @@ def _text(fdp: atheris.FuzzedDataProvider) -> str:
 
 def TestOneInput(data: bytes) -> None:
     fdp = atheris.FuzzedDataProvider(data)
-    target = fdp.ConsumeIntInRange(0, 6)
+    target = fdp.ConsumeIntInRange(0, 10)
     s = _text(fdp)
 
     if target == 0:  # parsers of API data: must never raise
@@ -90,10 +93,36 @@ def TestOneInput(data: bytes) -> None:
     elif target == 5:
         block._is_height(s)
         block._is_block_hash(s)
+    elif target == 7:  # raw transactions are untrusted bytes: only ValueError is allowed
+        raw = fdp.ConsumeBytes(fdp.ConsumeIntInRange(0, 600))
+        with suppress(ValueError):
+            rawtx.decode_tx(raw, "mainnet").to_dict()
+        with suppress(ValueError):
+            rawtx.parse_hex(s)
+    elif target == 8:  # addresses and scripts: parse_address raises only ValueError, scripts never raise
+        with suppress(ValueError):
+            encoding.parse_address(s, "custom")
+        script = fdp.ConsumeBytes(fdp.ConsumeIntInRange(0, 120))
+        encoding.script_type(script)
+        encoding.script_address(script, "mainnet")
+    elif target == 9:  # inscription envelopes inside arbitrary witness scripts: never raise
+        script = fdp.ConsumeBytes(fdp.ConsumeIntInRange(0, 400))
+        with suppress(inscription.TruncatedScript):
+            for payload in inscription._envelopes_in(script):
+                inscription._build(payload, TXID + "i0", 0).to_dict()
+    elif target == 10:  # block headers and Merkle proofs: only ValueError is allowed
+        with suppress(ValueError):
+            _ = verify.parse_header(fdp.ConsumeBytes(80)).target
+        with suppress(ValueError):
+            verify.bits_to_target(fdp.ConsumeIntInRange(0, 2**32 - 1))
+        with suppress(ValueError):
+            verify.merkle_root_from_proof(TXID, [_text(fdp) for _ in range(fdp.ConsumeIntInRange(0, 3))],
+                                          fdp.ConsumeIntInRange(-1, 16))
     else:  # every API parser over arbitrary JSON: only MempoolAPIError is allowed
         data, text = _json(fdp), _text(fdp)
-        which = fdp.ConsumeIntInRange(0, 6)
+        which = fdp.ConsumeIntInRange(0, 9)
         with patch.object(opreturn, "get_json", return_value=data), \
+                patch.object(tx, "get_json", return_value=data), \
                 patch.object(balance, "get_json", return_value=data), \
                 patch.object(utxo, "get_json", return_value=data), \
                 patch.object(fees, "get_json", return_value=data), \
@@ -102,7 +131,10 @@ def TestOneInput(data: bytes) -> None:
                 suppress(MempoolAPIError):
             result = [lambda: opreturn.decode_op_return(TXID), lambda: tx.get_tx(TXID),
                       lambda: balance.get_balance(ADDR), lambda: utxo.get_utxos(ADDR), fees.get_fees,
-                      lambda: block.get_block("latest"), lambda: block.get_block(TXID)][which]()
+                      lambda: block.get_block("latest"), lambda: block.get_block(TXID),
+                      lambda: tx.get_tx(TXID, inputs=True, outputs=True),
+                      lambda: inscription.get_inscriptions(TXID),
+                      lambda: tx.get_tx(TXID, "custom", inputs=True, outputs=True)][which]()
             # What the CLI does next: derived values (fee rate, sizes, UTC times) and the JSON form.
             for item in result if isinstance(result, list) else [result]:
                 item.to_dict()
