@@ -13,6 +13,7 @@ SATOSHI = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
 CRAIG_TX = "f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab"
 LIQUID_FIRST_MSG = "c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01866b2b3e69a19"
 DONATION = "bc1qulq8xfcmgxxumjx3yndkfktqgw2exh0rym45sn"
+INSCRIPTION_0_TX = "6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799"  # ord inscription 0
 
 failures = []
 
@@ -82,6 +83,35 @@ def signet_tip():
     check("signet tip is reachable", code == 0 and d["height"] > 200_000, str(d))
 
 
+def verify_liquid():
+    code, d = run("verify", LIQUID_FIRST_MSG, "--json")
+    ok = code == 0 and d["verified"] is True and d["work"] == "strong" and d["block_height"] == 965818
+    check("verify proves the Liquid first-contact transaction is in block 965818", ok, str(d))
+
+
+def decode_liquid():
+    code, d = run("decode", "--txid", LIQUID_FIRST_MSG, "--json")
+    check("decode --txid recomputes the Liquid transaction's txid", code == 0 and d["txid"] == LIQUID_FIRST_MSG, str(d))
+
+
+def tx_outputs():
+    code, d = run("tx", LIQUID_FIRST_MSG, "--inputs", "--outputs", "--json")
+    ok = code == 0 and len(d["inputs"]) == d["input_count"] and all(o["spent"] in (True, False) for o in d["outputs"])
+    check("tx --inputs --outputs lists every input and output with its spent state", ok, str(d))
+
+
+def inscription_zero():
+    code, d = run("inscription", INSCRIPTION_0_TX, "--json")
+    ok = code == 0 and d["inscription_count"] >= 1 and d["inscriptions"][0]["content_type"] == "image/png"
+    check("inscription finds ord inscription 0 (a PNG)", ok, str(d))
+
+
+def validate_offline():
+    good, _ = run("validate", SATOSHI, "--json")
+    typo, _ = run("validate", SATOSHI[:-1] + "b", "--json")
+    check("validate accepts a real address and catches a one-character typo", (good, typo) == (0, 2), f"{good}, {typo}")
+
+
 def not_found_contract():
     code, _ = run("tx", "0" * 64, "--json")
     check("unknown txid exits 1 (network contract)", code == 1, f"exit {code}")
@@ -89,11 +119,14 @@ def not_found_contract():
 
 if __name__ == "__main__":
     print("btc-toolkit live smoke test")
-    for name, fn in [
+    checks = [
         ("block", block_genesis), ("opreturn", opreturn_craig), ("tx", tx_liquid),
         ("address", address_satoshi), ("balance", balance_satoshi), ("utxo", utxo_small),
         ("fees", fees_live), ("signet", signet_tip), ("not-found", not_found_contract),
-    ]:
+        ("verify", verify_liquid), ("decode", decode_liquid), ("tx-details", tx_outputs),
+        ("inscription", inscription_zero), ("validate", validate_offline),
+    ]
+    for name, fn in checks:
         safe(name, fn)
-    print(f"\n{9 - len(failures)}/9 checks passed")
+    print(f"\n{len(checks) - len(failures)}/{len(checks)} checks passed")
     sys.exit(1 if failures else 0)

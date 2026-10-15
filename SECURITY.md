@@ -12,8 +12,12 @@ important — what it does not.
   HTTP on your local network).
 - Validates input **locally** before any request is made: transaction IDs and
   block hashes must be 64 hex characters and heights non-negative integers;
-  addresses get a format check (length and characters) — full address
-  validation is left to the API, which rejects invalid addresses.
+  addresses are fully validated offline — checksum (Base58Check, bech32,
+  bech32m), network and type — so a mistyped address is never sent. (With
+  `--api-url` and no `-n`, the chain is unknown and any network is accepted.)
+- Some checks do not depend on the API at all: `validate` and `decode` work
+  offline, and `verify` recomputes a transaction's Merkle proof and its block's
+  proof of work from raw bytes instead of trusting the API's "confirmed".
 - Prints results. That's it.
 
 ## What it does NOT do
@@ -34,7 +38,7 @@ The package depends on the Python standard library only. There is no
 
 - **No supply-chain surface** through third-party packages: a compromised
   upstream library cannot ship inside btc-toolkit, because there are none.
-- The full auditable surface is this repository — about a dozen small modules.
+- The full auditable surface is this repository — about fifteen small modules.
 - Monetary math uses integer satoshis, never floating point.
 
 ## Threat model
@@ -46,7 +50,7 @@ The package depends on the Python standard library only. There is no
 - Floating-point errors in balances and fee amounts (integer satoshis throughout; fee rates in sat/vB are decimal by nature)
 - Terminal escape sequences hidden in on-chain text, API responses or input files (OP_RETURN messages, error messages and echoed input are printed with control characters escaped; hashes from the API must be hex)
 - Crashes on malformed API responses (every field is type-checked: a wrong type is a clean error, exit code 1)
-- Malformed transaction IDs, block references and obviously malformed addresses reaching the network (validated locally first, exit code 2)
+- Malformed transaction IDs and block references, and invalid addresses — a typo, a wrong network — reaching the network (validated locally first, checksums included; exit code 2)
 - Hanging on a dead endpoint (configurable `--timeout`, bounded retries on transient errors only)
 
 ### What btc-toolkit does NOT protect you against
@@ -54,8 +58,14 @@ The package depends on the Python standard library only. There is no
 - **A compromised or lying API backend.** By default you are trusting
   `mempool.space` to report the chain honestly. `--api-url` lets you trust
   *your own* node instead — that is the intended path to sovereignty.
-- **Consensus validation.** The tool does not validate blocks, headers, or
-  proofs. It reports what an API says. Only a full node validates consensus.
+- **Consensus validation.** Most commands report what the API says. `verify`
+  checks that a transaction is committed to by a header carrying valid proof
+  of work, but not the block height (the API reports it) nor that the header
+  is in the chain everyone follows. Its verdict depends only on the work
+  proven: "strong" needs a mainnet header at difficulty 50 T or more (about
+  2^77.5 hashes to forge); anything less is reported as "weak" — consistent,
+  but cheap to fake. Signet block signatures are not checked. Only a full node
+  validates consensus.
 - **A compromised operating system, Python installation, or PyPI account.**
   See *Verifying releases* below for what you can check.
 - **Privacy of your queries** toward the API operator. Queries reveal which

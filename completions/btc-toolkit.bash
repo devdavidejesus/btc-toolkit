@@ -6,7 +6,7 @@ _btc_toolkit() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="opreturn tx address balance fees block utxo"
+    commands="opreturn tx address balance fees block utxo validate inscription decode verify"
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${commands} --help --version" -- "${cur}") )
@@ -19,7 +19,7 @@ _btc_toolkit() {
         --file)
             COMPREPLY=( $(compgen -f -- "${cur}") )
             return 0 ;;
-        --api-url|--timeout|--limit)
+        --api-url|--timeout|--limit|--txid)
             return 0 ;;
     esac
     # Each command gets exactly the flags it accepts.
@@ -28,6 +28,8 @@ _btc_toolkit() {
         fees)     ;;
         opreturn) flags="${flags} --file --raw" ;;
         utxo)     flags="${flags} --file --confirmed-only --limit" ;;
+        tx)       flags="${flags} --file --inputs --outputs" ;;
+        decode)   flags="${flags} --txid" ;;
         *)        flags="${flags} --file" ;;
     esac
     COMPREPLY=( $(compgen -W "${flags}" -- "${cur}") )

@@ -11,9 +11,12 @@ are never retried.
 No external dependencies — standard library only.
 """
 
+import contextlib
 import http.client
 import json
 import math
+import socket
+import threading
 import time
 from typing import Any
 import urllib.request
@@ -34,6 +37,7 @@ SUPPORTED_NETWORKS = ("mainnet", "testnet", "signet")
 _custom_api_base: str | None = None
 
 _USER_AGENT = f"btc-toolkit/{__version__}"
+MAX_RESPONSE_BYTES = 32 * 1024 * 1024  # far above any real response; stops a hostile endpoint from filling memory
 DEFAULT_TIMEOUT = 15
 MAX_TIMEOUT = 86_400  # one day; the socket layer overflows near 1e10 seconds
 _TIMEOUT: float = DEFAULT_TIMEOUT
@@ -97,6 +101,15 @@ def _check_api_url(url: str) -> None:
         raise ValueError(f"invalid API URL {url!r}: {e}") from None
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise ValueError(f"invalid API URL {url!r}: it must start with http:// or https:// and name a host, {example}")
+    if parts.username is not None or parts.password is not None or "\\" in url:
+        raise ValueError(f"invalid API URL {url!r}: user names, passwords and backslashes are not supported")
+    if parts.query or parts.fragment or url.endswith(("?", "#")):
+        raise ValueError(f"invalid API URL {url!r}: give the API root only, without ?query or #fragment")
+
+
+def custom_api_in_use() -> bool:
+    """True when requests go to a user-supplied API (--api-url), not to mempool.space."""
+    return _custom_api_base is not None
 
 
 def get_api_base(network: str) -> str:
@@ -117,6 +130,81 @@ def get_api_base(network: str) -> str:
     return MEMPOOL_API
 
 
+class _Watchdog:
+    """Shut down every socket of one request once its deadline passes: unblocks a read stuck on a trickling server."""
+
+    current = threading.local()
+
+    def __init__(self, seconds: float) -> None:
+        self.socks: list[socket.socket] = []
+        self.fired = False
+        self._lock = threading.Lock()
+        self._timer = threading.Timer(seconds, self._fire)
+        self._timer.daemon = True
+
+    def register(self, sock: socket.socket) -> None:
+        with self._lock:
+            self.socks.append(sock)
+            if self.fired:
+                self._shutdown(sock)
+
+    def _fire(self) -> None:
+        with self._lock:
+            self.fired = True
+            for sock in self.socks:
+                self._shutdown(sock)
+
+    @staticmethod
+    def _shutdown(sock: socket.socket) -> None:
+        with contextlib.suppress(OSError):  # already closed
+            sock.shutdown(socket.SHUT_RDWR)
+
+    def __enter__(self) -> "_Watchdog":
+        _Watchdog.current.value = self
+        self._timer.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._timer.cancel()
+        _Watchdog.current.value = None
+
+
+def _register_socket(sock: Any) -> None:
+    wd = getattr(_Watchdog.current, "value", None)
+    if wd is not None and sock is not None:
+        wd.register(sock)
+
+
+class _WatchedHTTPConnection(http.client.HTTPConnection):
+    def connect(self) -> None:
+        super().connect()
+        _register_socket(self.sock)
+
+
+class _WatchedHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self) -> None:
+        super().connect()
+        _register_socket(self.sock)
+
+
+class _HTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req: Any) -> Any:
+        return self.do_open(_WatchedHTTPConnection, req)
+
+
+class _HTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req: Any) -> Any:
+        # The handler keeps its TLS context (None: the default, verifying one) in a private attribute.
+        return self.do_open(_WatchedHTTPSConnection, req, context=getattr(self, "_context", None))
+
+
+_OPENER = urllib.request.build_opener(_HTTPHandler(), _HTTPSHandler())
+
+
+def _urlopen(req: Any, timeout: float) -> Any:
+    return _OPENER.open(req, timeout=timeout)
+
+
 def _fetch(path: str, network: str) -> bytes:
     """
     GET an API path and return the raw response body.
@@ -130,8 +218,17 @@ def _fetch(path: str, network: str) -> bytes:
         last_attempt = attempt == _MAX_ATTEMPTS - 1
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-            with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-                body: bytes = resp.read()
+            with _Watchdog(2 * _TIMEOUT) as wd:
+                late = MempoolAPIError(f"response not received within {2 * _TIMEOUT:g} seconds")
+                try:
+                    with _urlopen(req, timeout=_TIMEOUT) as resp:
+                        body = _read_bounded(resp)
+                except (OSError, http.client.HTTPException) as e:
+                    if wd.fired:  # the deadline cut the connection: not transient, do not retry
+                        raise late from e
+                    raise
+                if wd.fired:  # cut short by the deadline, the body may be truncated
+                    raise late
                 return body
         except urllib.error.HTTPError as e:
             if e.code == 404:
@@ -155,6 +252,24 @@ def _fetch(path: str, network: str) -> bytes:
             raise MempoolAPIError(f"Connection error: {type(e).__name__}: {e}") from e
 
     raise MempoolAPIError(f"Request failed after {_MAX_ATTEMPTS} attempts")
+
+
+def _read_bounded(resp: Any) -> bytes:
+    """
+    Read a response body in chunks, refusing one larger than MAX_RESPONSE_BYTES or slower than the timeout
+    allows: a server sending a byte at a time would otherwise reset the socket timeout forever.
+    """
+    deadline = time.monotonic() + 2 * _TIMEOUT
+    chunks: list[bytes] = []
+    size = 0
+    while chunk := resp.read(65536):
+        size += len(chunk)
+        if size > MAX_RESPONSE_BYTES:
+            raise MempoolAPIError(f"response larger than {MAX_RESPONSE_BYTES // (1024 * 1024)} MB")
+        if time.monotonic() > deadline:
+            raise MempoolAPIError(f"response not received within {2 * _TIMEOUT:g} seconds")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def get_json(path: str, network: str = "mainnet") -> Any:

@@ -80,13 +80,13 @@ def _is_block_hash(ref: str) -> bool:
 
 def _is_height(ref: str) -> bool:
     ref = ref.strip()
-    return ref.isascii() and ref.isdigit()
+    return ref.isascii() and ref.isdigit() and len(ref) <= 10  # far beyond any height; keeps int() cheap
 
 
 def get_tip_height(network: str = "mainnet") -> int:
     """Return the current chain tip height."""
     text = get_text("/blocks/tip/height", network)
-    if not (text.isascii() and text.isdigit()):
+    if not (text.isascii() and text.isdigit() and len(text) <= 10):
         raise MempoolAPIError(f"Unexpected response from /blocks/tip/height: {text[:40]!r}")
     return int(text)
 

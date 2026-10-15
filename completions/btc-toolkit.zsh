@@ -12,6 +12,10 @@ _btc_toolkit() {
         'fees:Recommended fee rates + mempool backlog'
         'block:Block metadata by height, hash, or latest'
         'utxo:Unspent outputs of an address'
+        'validate:Check an address offline (checksum, network, type)'
+        'inscription:Ordinals inscription envelopes in a transaction'
+        'decode:Decode a raw transaction offline'
+        'verify:Check a transaction is in a block (Merkle proof + work)'
     )
     if (( CURRENT == 2 )); then
         _describe 'command' commands
@@ -37,6 +41,14 @@ _btc_toolkit() {
                 '--file[Read items from file, one per line]:file:_files' \
                 '--confirmed-only[Exclude unconfirmed (mempool) UTXOs]' \
                 '--limit[Max UTXOs to display (default 15)]:count:' ;;
+        tx)
+            _arguments $common \
+                '--file[Read items from file, one per line]:file:_files' \
+                '--inputs[List each input]' \
+                '--outputs[List each output and whether it is spent]' ;;
+        decode)
+            _arguments $common \
+                '--txid[Fetch the raw transaction of this txid]:txid:' ;;
         *)
             _arguments $common \
                 '--file[Read items from file, one per line]:file:_files' ;;

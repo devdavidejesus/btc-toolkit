@@ -97,11 +97,11 @@ def get_utxos(
         A UtxoSet sorted by value, largest first.
 
     Raises:
-        ValueError: If the address format is obviously invalid.
+        ValueError: If the address is invalid (checksum, network or format).
         AddressNotFoundError: If the address is not found upstream.
         MempoolAPIError: On other API errors.
     """
-    address = _validate_address(address)
+    address = _validate_address(address, network)
 
     try:
         data = as_array(get_json(f"/address/{address}/utxo", network), "/address/utxo")
