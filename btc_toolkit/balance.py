@@ -87,7 +87,7 @@ def _validate_address(address: str) -> str:
     if len(address) < 14 or len(address) > 100:
         raise ValueError(f"Invalid address length: {address}")
 
-    if not all(c.isalnum() for c in address):
+    if not all(c.isascii() and c.isalnum() for c in address):  # isalnum() alone accepts non-ASCII letters
         raise ValueError(f"Invalid characters in address: {address}")
 
     return address

@@ -18,6 +18,7 @@ import time
 from typing import Any
 import urllib.request
 import urllib.error
+from urllib.parse import urlsplit
 
 from . import __version__
 
@@ -74,9 +75,28 @@ def set_api_base(url: str | None) -> None:
     Pass the full API root, e.g. http://umbrel.local:3006/api or
     https://my-node.example/api. A trailing slash is stripped.
     Pass None to reset to the public presets.
+
+    Raises:
+        ValueError: If the URL is not an http(s) URL naming a host.
     """
     global _custom_api_base
+    if url:
+        _check_api_url(url)
     _custom_api_base = url.rstrip("/") if url else None
+
+
+def _check_api_url(url: str) -> None:
+    """Reject a malformed API URL up front: it is user input (exit code 2), not a network failure."""
+    example = "e.g. http://umbrel.local:3006/api"
+    if not url.isascii() or not url.isprintable() or any(ch.isspace() for ch in url):
+        raise ValueError(f"invalid API URL {url!r}: use printable ASCII without spaces, {example}")
+    try:
+        parts = urlsplit(url)
+        _ = parts.port  # reading the port validates it (raises ValueError)
+    except ValueError as e:
+        raise ValueError(f"invalid API URL {url!r}: {e}") from None
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ValueError(f"invalid API URL {url!r}: it must start with http:// or https:// and name a host, {example}")
 
 
 def get_api_base(network: str) -> str:
@@ -148,7 +168,8 @@ def get_json(path: str, network: str = "mainnet") -> Any:
     body = _fetch(path, network)
     try:
         return json.loads(body.decode("utf-8"))
-    except ValueError as e:  # JSONDecodeError and UnicodeDecodeError are both ValueError
+    except (ValueError, RecursionError) as e:  # JSONDecodeError and UnicodeDecodeError are both ValueError;
+        # RecursionError: JSON nested deeper than the parser can follow.
         # Upstream returned something that is not JSON (e.g. an HTML error page).
         # A bare ValueError would be reported by the CLI as invalid *user input*.
         raise MempoolAPIError(f"Invalid JSON response from {path}") from e
@@ -258,6 +279,37 @@ def field_opt_str(obj: dict[str, Any], key: str, path: str) -> str | None:
     if value is not None and not isinstance(value, str):
         raise _unexpected(path, key, "a string")
     return value
+
+
+def _is_hash(value: str) -> bool:
+    """A block hash, txid or merkle root: 64 hex digits."""
+    return len(value) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in value)
+
+
+def field_hash(obj: dict[str, Any], key: str, path: str, default: str = "") -> str:
+    """
+    A 64-hex-digit hash (block hash, txid, merkle root), lowercased.
+
+    Hashes are printed to the terminal, so anything else — including escape
+    sequences from a hostile or broken API — is rejected. A missing field (or
+    one equal to the default) takes the default.
+    """
+    value = field_str(obj, key, path, default)
+    if value == default:
+        return value
+    if not _is_hash(value):
+        raise _unexpected(path, key, "a 64-character hex hash")
+    return value.lower()
+
+
+def field_opt_hash(obj: dict[str, Any], key: str, path: str) -> str | None:
+    """Like field_hash, but null or missing is None (e.g. the genesis block's previous hash)."""
+    value = field_opt_str(obj, key, path)
+    if value is None:
+        return None
+    if not _is_hash(value):
+        raise _unexpected(path, key, "a 64-character hex hash")
+    return value.lower()
 
 
 def _check_timestamp(value: int, key: str, path: str) -> int:

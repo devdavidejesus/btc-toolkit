@@ -60,16 +60,19 @@ def _explorer_url(network: str, kind: str, ident: str) -> str | None:
 def _print_link(network: str, kind: str, ident: str, prefix: str = "") -> None:
     url = _explorer_url(network, kind, ident)
     if url:
+        url = _terminal_safe(url)  # ident can be user input (an address that failed lookup)
         print(f"  {prefix}{c.dim(url) if not prefix else url}" + ("" if prefix else "\n"))
 
 
 def _terminal_safe(text: str) -> str:
     """
-    Escape control characters before printing on-chain text to a terminal.
+    Escape control characters before printing untrusted text to a terminal.
 
-    Anyone can write an OP_RETURN. Without this, a message could carry ANSI/OSC
-    escape sequences (rewrite the screen, the window title, links) or bidi
-    controls that reorder what is displayed. They are shown escaped (\\x1b).
+    Anyone can write an OP_RETURN, an API can be hostile or broken, and items
+    read with --file may come from someone else. Without this, such text could
+    carry ANSI/OSC escape sequences (rewrite the screen, the window title,
+    links) or bidi controls that reorder what is displayed. They are shown
+    escaped (\\x1b). Used for on-chain text, error messages and echoed input.
     """
     return "".join(
         ch.encode("unicode_escape").decode("ascii")
@@ -91,7 +94,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · opreturn · Mempool.space API\n"))
 
-    txid_short = f"{args.txid[:8]}...{args.txid[-8:]}"
+    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -103,10 +106,10 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
         _print_link(args.network, "tx", args.txid, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if not results:
@@ -137,10 +140,10 @@ def _opreturn_raw(args: argparse.Namespace) -> int:
     try:
         results = decode_op_return(args.txid, args.network)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 2
     except MempoolAPIError as e:  # includes TransactionNotFoundError
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 1
     for r in results:
         print(r.raw_hex)
@@ -158,7 +161,7 @@ def _opreturn_json(args: argparse.Namespace) -> int:
         return 1
 
     output = {
-        "txid": args.txid,
+        "txid": args.txid.strip().lower(),  # valid by now; same form as outputs[].txid
         "network": args.network,
         "op_return_count": len(results),
         "outputs": [r.to_dict() for r in results],
@@ -181,7 +184,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -192,10 +195,10 @@ def _cmd_balance(args: argparse.Namespace) -> int:
         _print_link(args.network, "address", args.address, prefix="Verify: ")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     confirmed_btc = bal.sats_to_btc(bal.confirmed_sats)
@@ -251,7 +254,7 @@ def _cmd_fees(args: argparse.Namespace) -> int:
     try:
         est = get_fees(args.network)
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
 
     print(f"  {c.bold('Recommended fee rates (sat/vB):')}\n")
@@ -294,20 +297,20 @@ def _cmd_block(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · block · Mempool.space API\n"))
 
-    print(f"  {c.bold('Block:')}   {args.ref}")
+    print(f"  {c.bold('Block:')}   {_terminal_safe(args.ref)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
     try:
         blk = get_block(args.ref, args.network)
     except BlockNotFoundError:
-        print(f"  {c.red('✗')} Block not found: {args.ref}\n")
+        print(f"  {c.red('✗')} Block not found: {_terminal_safe(args.ref)}\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     hash_short = f"{blk.hash[:16]}...{blk.hash[-8:]}"
@@ -359,7 +362,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -369,10 +372,10 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
         print(f"  {c.red('✗')} Address not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if not us.utxos:
@@ -433,7 +436,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     print(c.cyan(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · tx · Mempool.space API\n"))
 
-    txid_short = f"{args.txid[:8]}...{args.txid[-8:]}"
+    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -444,10 +447,10 @@ def _cmd_tx(args: argparse.Namespace) -> int:
         print(f"  {c.red('✗')} Transaction not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     if tx.confirmed:
@@ -521,7 +524,7 @@ def _cmd_address(args: argparse.Namespace) -> int:
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
     )
-    print(f"  {c.bold('Address:')} {addr_short}")
+    print(f"  {c.bold('Address:')} {_terminal_safe(addr_short)}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
 
@@ -531,10 +534,10 @@ def _cmd_address(args: argparse.Namespace) -> int:
         print(f"  {c.red('✗')} Address not found.\n")
         return 1
     except MempoolAPIError as e:
-        print(f"  {c.red('✗')} API error: {e}\n")
+        print(f"  {c.red('✗')} API error: {_terminal_safe(str(e))}\n")
         return 1
     except ValueError as e:
-        print(f"  {c.red('✗')} {e}\n")
+        print(f"  {c.red('✗')} {_terminal_safe(str(e))}\n")
         return 2
 
     bal = ov.balance
@@ -609,8 +612,8 @@ def _add_common_flags(parser: argparse.ArgumentParser, batch: bool = False) -> N
     if batch:
         parser.add_argument(
             "--file", dest="file", default=None, metavar="PATH",
-            help="Read one item per line from PATH (blank lines and # comments "
-                 "ignored). With --json, output is JSON Lines.",
+            help="Read one item per line from PATH (blank lines and lines starting "
+                 "with # are ignored). With --json, output is JSON Lines.",
         )
 
 
@@ -805,7 +808,11 @@ def run(argv: list[str] | None = None) -> int:
             print(f"Error: ${ENV_NETWORK} must be one of {', '.join(SUPPORTED_NETWORKS)}.", file=sys.stderr)
             return 2
         args.network = env_network or "mainnet"
-    set_api_base(api_url)
+    try:
+        set_api_base(api_url)
+    except ValueError as e:
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
+        return 2
     if api_url:
         args.network = "custom"
 
@@ -820,14 +827,14 @@ def run(argv: list[str] | None = None) -> int:
         try:
             set_timeout(timeout)
         except ValueError as e:
-            print(f"Error: {e}.", file=sys.stderr)
+            print(f"Error: {_terminal_safe(str(e))}.", file=sys.stderr)
             return 2
 
     key = _positional_key(args)
     try:
         items = _collect_items(args, key)
     except (OSError, ValueError) as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {_terminal_safe(str(e))}", file=sys.stderr)
         return 2
     if items is None:
         code: int = args.func(args)

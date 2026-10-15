@@ -24,6 +24,20 @@ Query the Bitcoin network via the [Mempool.space](https://mempool.space) public 
 
 ---
 
+## Quick start
+
+```bash
+pipx install btc-toolkit        # or: pip install btc-toolkit · brew install devdavidejesus/tap/btc-toolkit
+btc-toolkit fees                # current fee rates
+btc-toolkit opreturn f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
+```
+
+Try it without installing anything: `uvx btc-toolkit block 0`.
+
+Options go **after** the command: `btc-toolkit fees --network signet`, not
+`btc-toolkit --network signet fees`. `-n` is short for `--network`, and
+`btc-toolkit <command> --help` lists every option of a command.
+
 ## Commands
 
 | Command | Description |
@@ -165,7 +179,7 @@ btc-toolkit block latest --network testnet
 btc-toolkit utxo bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
 ```
 
-Lists every UTXO sorted by value (largest first), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
+Lists UTXOs sorted by value (largest first; the first 15 by default, see `--limit`), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
 
 > **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, which has received over 80,000 outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
 
@@ -176,7 +190,7 @@ btc-toolkit utxo <address> --confirmed-only
 # Show more than 15 entries
 btc-toolkit utxo <address> --limit 50
 
-# JSON output (always includes all UTXOs)
+# JSON output (ignores --limit; --confirmed-only still applies)
 btc-toolkit utxo <address> --json
 ```
 
@@ -290,7 +304,7 @@ file (`--file`), emitting JSON Lines you can pipe straight into `jq`:
 # many txids -> one JSON object per line
 cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'
 
-# or from a file (blank lines and # comments are ignored)
+# or from a file (blank lines and lines starting with # are ignored)
 btc-toolkit balance --file addresses.txt --json
 ```
 

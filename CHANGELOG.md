@@ -6,6 +6,28 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Security
+- Text mode escapes control characters everywhere, not only in on-chain text: error messages (which can carry text
+  from the API, such as an HTTP status reason), and input echoed back (a txid, address or block reference, possibly
+  read from a `--file` someone else wrote). Block hashes, previous-block hashes, merkle roots and UTXO txids from the
+  API must be 64 hex digits; anything else is an API error (exit code 1). JSON output was already escaped.
+
+### Fixed
+- A malformed `--api-url` or `$BTC_TOOLKIT_API_URL` (no `http://` or `https://`, no host, a bad port, spaces or
+  non-ASCII characters) is now invalid input, exit code 2, with a clear message. It used to end in a traceback.
+- A JSON response nested too deeply to parse is an API error (exit code 1) instead of a traceback.
+- `tx` no longer flags a coinbase transaction as RBF: a coinbase input cannot be replaced, whatever its sequence.
+- An address with non-ASCII letters is rejected locally (exit code 2) with the usual message, instead of an
+  encoding error.
+- `opreturn --json` reports the txid in lowercase at the top level too, as it already did in `outputs[].txid`.
+- Documentation: the JSON error keys per command, how amounts and rates are typed, that an address with a bad
+  checksum is reported by the API (exit code 1), what `--limit` and `--confirmed-only` do to `utxo` output, and that
+  only lines starting with `#` are comments in a `--file`.
+
+### Added
+- README: a quick start, with the rule that options go after the command (`btc-toolkit fees --network signet`).
+- README: install and run with [uv](https://docs.astral.sh/uv/) (`uvx btc-toolkit`, `uv tool install btc-toolkit`).
+
 ## [1.7.2] — 2026-10-10
 
 A documentation release: the code is the same as in 1.7.1. It republishes the README on PyPI with the

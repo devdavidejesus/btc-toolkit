@@ -117,7 +117,9 @@ def get_tx(txid: str, network: str = "mainnet") -> TxInfo:
         if not isinstance(prevout, dict):
             raise MempoolAPIError(f"Unexpected response from {path}: 'prevout' is not an object")
         total_input += field_int(prevout, "value", path)
-        if field_int(i, "sequence", path, default=0xFFFFFFFF) < _RBF_SEQUENCE_THRESHOLD:
+        # A coinbase input cannot be replaced, whatever its sequence (BIP 125 covers spends only).
+        if not field_bool(i, "is_coinbase", path) \
+                and field_int(i, "sequence", path, default=0xFFFFFFFF) < _RBF_SEQUENCE_THRESHOLD:
             is_rbf = True
 
     total_output = sum(field_int(o, "value", path) for o in vout)

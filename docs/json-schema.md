@@ -4,8 +4,9 @@ Every command accepts `--json` and prints **one JSON object** to stdout.
 In batch mode (stdin `-` or `--file`), output is **JSON Lines**: one compact
 object per line, in input order — pipe it straight into `jq`.
 
-Errors are also JSON: `{"error": "<message>", "<input-key>": "<value>"}`,
-with the exit code telling you why (see below).
+Errors are also JSON: `{"error": "<message>"}` plus the input under its own key —
+`txid` (`tx`, `opreturn`), `address` (`address`, `balance`, `utxo`) or `ref` (`block`);
+`fees` takes no input, so it has only `error`. The exit code tells you why (see below).
 
 ## Stability policy
 
@@ -14,8 +15,10 @@ The JSON output is a contract:
 - **Adding** a key is a minor version (`1.x`). Consumers must ignore unknown keys.
 - **Renaming, removing, or changing the type/meaning** of a key is a **major**
   version. It will never happen silently in a patch or minor release.
-- Amounts are integers in **satoshis** (`*_sats`) or fixed-point strings in BTC
-  (`confirmed`, `total`, …) — never floats.
+- Amounts are never floats: integers in **satoshis** (`*_sats` keys, and the `sats`
+  field of `confirmed` / `unconfirmed` / `total`) or fixed-point BTC strings (their
+  `btc` field). Rates and sizes (`fee_rate_sat_vb`, `fees_sat_vb.*`, `vsize_vmb`,
+  `size_mb`, `blocks_to_clear`, `difficulty`) are JSON numbers and may be fractional.
 - `network` is `mainnet`, `testnet`, `signet`, or `custom` (when `--api-url` /
   `$BTC_TOOLKIT_API_URL` is in use).
 
@@ -25,13 +28,17 @@ The JSON output is a contract:
 |---|---|---|
 | `0` | Success | object printed |
 | `1` | Network / API / runtime failure (incl. not found) | error object printed |
-| `2` | Invalid user input (bad txid, address or height) | error object printed |
+| `2` | Invalid input caught locally (malformed txid, block reference, or an address with the wrong length or characters) | error object printed |
+
+An address that is well-formed but rejected by the API (for example, a typo that
+breaks its checksum) comes back as HTTP 400 and exits `1`: the checksum is not
+verified locally yet.
 
 In batch mode the exit code is the **worst** code across all items.
 
 Errors in the command line itself, found before any item is processed — an
-unknown command, flag or flag value, an invalid `--timeout`, `$BTC_TOOLKIT_TIMEOUT` or `$BTC_TOOLKIT_NETWORK`, an
-unreadable `--file`, or no items to process — are printed as plain text on
+unknown command, flag or flag value, an invalid `--timeout`, `$BTC_TOOLKIT_TIMEOUT` or `$BTC_TOOLKIT_NETWORK`, a
+malformed `--api-url` or `$BTC_TOOLKIT_API_URL`, an unreadable `--file`, or no items to process — are printed as plain text on
 stderr, also with exit code `2`.
 
 ## Schemas by command

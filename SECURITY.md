@@ -43,8 +43,8 @@ The package depends on the Python standard library only. There is no
 
 - Supply-chain compromise via Python dependencies (there are none)
 - Hidden telemetry or data exfiltration (there is no outbound traffic except your queries)
-- Floating-point errors in balances and fees (integer satoshis throughout)
-- Terminal escape sequences hidden in on-chain text (OP_RETURN messages are printed with control characters escaped)
+- Floating-point errors in balances and fee amounts (integer satoshis throughout; fee rates in sat/vB are decimal by nature)
+- Terminal escape sequences hidden in on-chain text, API responses or input files (OP_RETURN messages, error messages and echoed input are printed with control characters escaped; hashes from the API must be hex)
 - Crashes on malformed API responses (every field is type-checked: a wrong type is a clean error, exit code 1)
 - Malformed transaction IDs, block references and obviously malformed addresses reaching the network (validated locally first, exit code 2)
 - Hanging on a dead endpoint (configurable `--timeout`, bounded retries on transient errors only)

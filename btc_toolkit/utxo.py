@@ -15,7 +15,7 @@ Values are in satoshis.
 from dataclasses import dataclass
 
 from typing import Any
-from .api import get_json, as_array, field_bool, field_int, field_object, field_opt_int, field_str
+from .api import get_json, as_array, field_bool, field_hash, field_int, field_object, field_opt_int
 from .api import MempoolAPIError, NotFoundError
 from .balance import _validate_address, AddressNotFoundError, SATS_PER_BTC
 
@@ -119,7 +119,7 @@ def get_utxos(
             continue
         utxos.append(
             Utxo(
-                txid=field_str(item, "txid", path),
+                txid=field_hash(item, "txid", path),
                 vout=field_int(item, "vout", path),
                 value=field_int(item, "value", path),
                 confirmed=confirmed,

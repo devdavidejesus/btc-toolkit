@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 
 from typing import Any
 from .api import get_json, get_text, as_object, MempoolAPIError, NotFoundError
-from .api import field_int, field_number, field_opt_str, field_str, field_timestamp
+from .api import field_hash, field_int, field_number, field_opt_hash, field_timestamp
 
 
 class BlockNotFoundError(NotFoundError):
@@ -137,15 +137,15 @@ def get_block(ref: str, network: str = "mainnet") -> BlockInfo:
 
     path = "/block"
     return BlockInfo(
-        hash=field_str(data, "id", path, default=block_hash),
+        hash=field_hash(data, "id", path, default=block_hash),
         height=field_int(data, "height", path),
         timestamp=field_timestamp(data, "timestamp", path),
         tx_count=field_int(data, "tx_count", path),
         size=field_int(data, "size", path),
         weight=field_int(data, "weight", path),
         version=field_int(data, "version", path),
-        merkle_root=field_str(data, "merkle_root", path),
-        previousblockhash=field_opt_str(data, "previousblockhash", path),
+        merkle_root=field_hash(data, "merkle_root", path),
+        previousblockhash=field_opt_hash(data, "previousblockhash", path),
         nonce=field_int(data, "nonce", path),
         bits=field_int(data, "bits", path),
         difficulty=field_number(data, "difficulty", path),

@@ -168,6 +168,7 @@ def decode_op_return(txid: str, network: str = "mainnet") -> list[OPReturnData]:
     OP_RETURN that carries no data (raw_hex "", size 0), such as a bare
     OP_RETURN or a Runestone marker with nothing after it.
     """
+    txid = _validate_txid(txid)  # results carry the normalized (lowercase) txid
     tx_data = fetch_transaction(txid, network)
     results = []
 

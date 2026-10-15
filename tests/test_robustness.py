@@ -213,6 +213,55 @@ class TestOnChainTextInTheTerminal(unittest.TestCase):
         self.assertEqual(json.loads(buf.getvalue())["outputs"][0]["decoded_text"], "a\x1bb")
 
 
+class TestEveryUntrustedStringInTheTerminal(unittest.TestCase):
+    """Not only OP_RETURN text: hashes and error text from the API, and echoed input."""
+
+    ESC = "\x1b]0;PWNED\x07\x1b[2J"
+
+    def setUp(self) -> None:
+        patcher = patch("btc_toolkit.colors._USE_COLOR", False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _run(self, argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), patch("sys.stderr", err):
+            code = cli.run(argv)
+        return code, out.getvalue() + err.getvalue()
+
+    def test_hashes_from_the_api_must_be_hex(self):
+        for path in (("id",), ("previousblockhash",), ("merkle_root",)):
+            with self.subTest(path=path), self.assertRaises(MempoolAPIError), \
+                    patch("btc_toolkit.block.get_json", return_value=_with(BLOCK, path, self.ESC + "0" * 50)):
+                get_block("0" * 64)
+        good = {"txid": TXID, "vout": 0, "value": 1, "status": {"confirmed": True, "block_height": 1}}
+        with self.assertRaises(MempoolAPIError), \
+                patch("btc_toolkit.utxo.get_json", return_value=[_with(good, ("txid",), self.ESC)]):
+            get_utxos(ADDR)
+
+    def test_hashes_are_lowercased(self):
+        upper = _with(_with(BLOCK, ("id",), "AB" * 32), ("previousblockhash",), "CD" * 32)
+        with patch("btc_toolkit.block.get_json", return_value=upper):
+            blk = get_block("0" * 64)
+        self.assertEqual((blk.hash, blk.previousblockhash), ("ab" * 32, "cd" * 32))
+
+    def test_api_error_text_is_escaped(self):
+        with patch("btc_toolkit.cli.get_tx", side_effect=MempoolAPIError("API error 400: " + self.ESC)):
+            code, out = self._run(["tx", TXID])
+        self.assertEqual(code, 1)
+        self.assertNotIn("\x1b", out)
+        self.assertIn("\\x1b]0;PWNED\\x07", out)
+
+    def test_echoed_input_is_escaped(self):
+        for argv in (["tx", self.ESC], ["opreturn", self.ESC], ["opreturn", self.ESC, "--raw"],
+                     ["block", self.ESC], ["balance", "1" + self.ESC + "A" * 20], ["utxo", self.ESC * 3]):
+            with self.subTest(argv=argv):
+                code, out = self._run(argv)
+                self.assertEqual(code, 2)
+                self.assertNotIn("\x1b", out)
+                self.assertNotIn("\x07", out)
+
+
 class TestRawAndLinks(unittest.TestCase):
     TX = {"vout": [{"scriptpubkey_type": "op_return", "scriptpubkey": "6a0568656c6c6f",
                     "scriptpubkey_asm": "OP_RETURN OP_PUSHBYTES_5 68656c6c6f"},
@@ -260,6 +309,67 @@ class TestRawAndLinks(unittest.TestCase):
             cli.run(["opreturn", TXID])
         self.assertIn("Found 2 OP_RETURN output(s)", buf.getvalue())
         self.assertIn("(no data)", buf.getvalue())
+
+
+class TestInputAndResponseEdgeCases(unittest.TestCase):
+    """Edge cases from the 1.7.3 audit: each used to crash or report the wrong thing."""
+
+    def tearDown(self) -> None:
+        from btc_toolkit.api import set_api_base
+        set_api_base(None)
+
+    def _run(self, argv, env=None):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), patch("sys.stderr", err), patch.dict("os.environ", env or {}):
+            code = cli.run(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_malformed_api_url_is_invalid_input(self):
+        for url in ("mempool.space/api", "https://[::1/api", "http://exämple/api", "ftp://node/api",
+                    "http://node:99999/api", "http:// node/api"):
+            for argv, env in ((["fees", "--api-url", url], None), (["fees", "--json"], {"BTC_TOOLKIT_API_URL": url})):
+                with self.subTest(url=url, argv=argv):
+                    code, out, err = self._run(argv, env)
+                    self.assertEqual(code, 2)
+                    self.assertEqual(out, "")
+                    self.assertIn("invalid API URL", err)
+
+    def test_valid_api_urls_are_accepted(self):
+        from btc_toolkit.api import get_api_base, set_api_base
+        for url in ("http://umbrel.local:3006/api", "https://mempool.space/api/", "http://[::1]:3006/api",
+                    "http://abcdefghijklmnop.onion/api"):
+            with self.subTest(url=url):
+                set_api_base(url)
+                self.assertEqual(get_api_base("mainnet"), url.rstrip("/"))
+
+    def test_deeply_nested_json_is_an_api_error(self):
+        from btc_toolkit.api import get_json
+        with patch("btc_toolkit.api._fetch", return_value=b"[" * 200_000), self.assertRaises(MempoolAPIError):
+            get_json("/tx/x")
+
+    def test_non_ascii_address_is_rejected_locally(self):
+        with self.assertRaisesRegex(ValueError, "Invalid characters"):
+            get_balance("1" + "é" * 30)
+
+    def test_coinbase_is_never_rbf(self):
+        coinbase = _with(_with(TX, ("vin", 0, "prevout"), None), ("vin", 0, "sequence"), 0)
+        coinbase["vin"][0]["is_coinbase"] = True
+        with patch("btc_toolkit.tx.fetch_transaction", return_value=coinbase):
+            tx = get_tx(TXID)
+        self.assertTrue(tx.is_coinbase)
+        self.assertFalse(tx.is_rbf)
+        with patch("btc_toolkit.tx.fetch_transaction", return_value=_with(TX, ("vin", 0, "sequence"), 0)):
+            self.assertTrue(get_tx(TXID).is_rbf)  # a spend with a low sequence still signals RBF
+
+    def test_opreturn_json_txid_is_lowercase(self):
+        tx = {"vout": [{"scriptpubkey_type": "op_return", "scriptpubkey": "6a0141",
+                        "scriptpubkey_asm": "OP_RETURN OP_PUSHBYTES_1 41"}]}
+        with patch("btc_toolkit.opreturn.fetch_transaction", return_value=tx):
+            code, out, _ = self._run(["opreturn", "AB" * 32, "--json"])
+        self.assertEqual(code, 0)
+        data = json.loads(out)
+        self.assertEqual(data["txid"], "ab" * 32)
+        self.assertEqual(data["outputs"][0]["txid"], "ab" * 32)
 
 
 if __name__ == "__main__":
