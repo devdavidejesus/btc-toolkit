@@ -105,7 +105,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     if args.raw:
         return _opreturn_raw(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · opreturn · Mempool.space API\n"))
 
     txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
@@ -201,7 +201,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
     if args.json_output:
         return _balance_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · balance · Mempool.space API\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
@@ -268,7 +268,7 @@ def _cmd_fees(args: argparse.Namespace) -> int:
     if args.json_output:
         return _fees_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · fees · Mempool.space API\n"))
 
     print(f"  {c.bold('Network:')} {args.network}")
@@ -317,7 +317,7 @@ def _cmd_block(args: argparse.Namespace) -> int:
     if args.json_output:
         return _block_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · block · Mempool.space API\n"))
 
     print(f"  {c.bold('Block:')}   {_terminal_safe(args.ref)}")
@@ -379,7 +379,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
     if args.json_output:
         return _utxo_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · utxo · Mempool.space API\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
@@ -456,7 +456,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     if args.json_output:
         return _tx_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · tx · Mempool.space API\n"))
 
     txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
@@ -580,7 +580,7 @@ def _cmd_address(args: argparse.Namespace) -> int:
     if args.json_output:
         return _address_json(args)
 
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · address · Mempool.space API\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
@@ -640,7 +640,7 @@ def _address_json(args: argparse.Namespace) -> int:
 # ──────────────────────────────────────────────────────────────────────
 
 def _header(command: str, label: str, value: str, network: str, source: str = "Mempool.space API") -> None:
-    print(c.cyan(BANNER))
+    print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · {command} · {source}\n"))
     print(f"  {c.bold(label)} {_terminal_safe(value)}")
     print(f"  {c.bold('Network:')} {network}")

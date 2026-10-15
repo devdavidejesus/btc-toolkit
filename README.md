@@ -1,10 +1,13 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/logo.svg" alt="btc-toolkit" width="640"/>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/logo-dark.svg"/>
+  <img src="https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/logo.svg" alt="btc-toolkit" width="480"/>
+</picture>
 
-**Bitcoin CLI toolkit — zero dependencies, no Bitcoin Core required.**
+**Read and verify Bitcoin from your terminal.** Zero dependencies, no Bitcoin Core required.
 
-Query the Bitcoin network via the [Mempool.space](https://mempool.space) public API, or your own Mempool instance.
+Reads the chain through the [Mempool.space](https://mempool.space) public API, or your own Mempool instance, and checks what it can by computation: address checksums offline, and a transaction against its block's Merkle proof and proof of work.
 
 [![Tests](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/devdavidejesus/btc-toolkit/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/btc-toolkit?label=PyPI&color=F7931A&logo=pypi&logoColor=white)](https://pypi.org/project/btc-toolkit/)
@@ -221,7 +224,7 @@ btc-toolkit opreturn <txid> --raw
 
 Known protocol markers are named by their prefix: a Runes Runestone (`OP_RETURN OP_13`), Omni Layer (a payload starting with `omni` — a plain text message can start that way too), and the BIP 141 witness commitment in a coinbase. They are tagged, not decoded.
 
-**Seen in the wild:** the $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded with this command, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159). And the wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n).
+**Seen in the wild:** the $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded with this command, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159). And the wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n). btc-toolkit is also listed among the [developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources.
 
 ### Transactions to Try
 
@@ -309,10 +312,10 @@ btc-toolkit/
 ├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
 ├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
 ├── completions/          # Static bash + zsh completions
-├── assets/               # Logo, social preview and the README demos
+├── assets/               # Logo, icon, social preview and the README demos
 ├── .github/
 │   ├── workflows/        # CI, release, CodeQL, fuzz, Scorecard, weekly live smoke test
-│   ├── scripts/          # Release notes, live smoke test, demo recorder
+│   ├── scripts/          # Release notes, live smoke test, demo recorder, brand assets
 │   └── requirements/     # Hash-pinned CI tools
 ├── docs/
 │   ├── json-schema.md    # --json output per command + stability policy
