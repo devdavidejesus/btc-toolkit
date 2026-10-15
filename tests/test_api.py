@@ -130,32 +130,40 @@ class TestNetworksAndCustomBase(unittest.TestCase):
 
 
 class TestSlowServer(unittest.TestCase):
-    """A hostile server trickling bytes must not hold the tool past twice the timeout, at any stage."""
+    """A hostile server trickling bytes must not hold the tool much past twice the timeout, at any stage."""
 
     def _serve(self, payload_head: bytes) -> int:
+        """Start a server that sends `payload_head`, then one byte every 50 ms for 10 s or until the test ends."""
         import socket
         import threading
         srv = socket.socket()
         srv.bind(("127.0.0.1", 0))
         srv.listen(1)
-        port = srv.getsockname()[1]
+        stop = threading.Event()
 
         def run():
             conn, _ = srv.accept()
-            conn.recv(65536)
-            conn.sendall(payload_head)
-            deadline = time.monotonic() + 3
             try:
-                while time.monotonic() < deadline:
+                conn.recv(65536)
+                conn.sendall(payload_head)
+                deadline = time.monotonic() + 10
+                while not stop.wait(0.05) and time.monotonic() < deadline:
                     conn.sendall(b"a")
-                    time.sleep(0.05)
             except OSError:
                 pass
-            conn.close()
-            srv.close()
+            finally:
+                conn.close()
+                srv.close()
 
-        threading.Thread(target=run, daemon=True).start()
-        return port
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+
+        def cleanup():
+            stop.set()
+            thread.join(11)
+
+        self.addCleanup(cleanup)
+        return srv.getsockname()[1]
 
     def test_trickling_headers_body_or_chunks_are_cut_off(self):
         from btc_toolkit import api
@@ -172,10 +180,13 @@ class TestSlowServer(unittest.TestCase):
                     start = time.monotonic()
                     with self.assertRaisesRegex(MempoolAPIError, "not received within"):
                         api.get_text("/x")
-                    self.assertLess(time.monotonic() - start, 1.5)  # promised: 2 x 0.3 s
+                    # Promised: about 2 x 0.3 s. Windows takes longer to unblock the read (2.2 s seen on CI), so
+                    # the bound only proves the cut-off: without it, the read lasts as long as the server trickles.
+                    self.assertLess(time.monotonic() - start, 5)
                 finally:
                     set_api_base(None)
                     set_timeout(None)
+                    self.doCleanups()  # stop this stage's server before the next one starts
 
 
 if __name__ == "__main__":

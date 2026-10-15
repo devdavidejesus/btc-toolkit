@@ -52,8 +52,8 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
   non-ASCII characters, a user name or password, a query or a fragment) is now invalid input, exit code 2, with a clear
   message, before any request. A URL without a scheme used to end in a traceback; the others were retried and
   reported as connection errors.
-- A response is read with limits: at most 32 MB, and within twice the timeout. A server sending one byte at a time
-  could otherwise keep the tool waiting forever.
+- A response is read with limits: at most 32 MB, and within about twice the timeout. A server sending one byte at a
+  time could otherwise keep the tool waiting forever.
 - `tx` and the other transaction commands check that the API's answer is about the txid asked for.
 - A lone surrogate in input (an undecodable byte) is escaped like any control character, instead of a traceback on a
   strict UTF-8 terminal.

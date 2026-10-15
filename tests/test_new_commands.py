@@ -2,6 +2,8 @@
 
 import io
 import json
+import time
+import types
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -227,9 +229,12 @@ class TestAuditFixes(unittest.TestCase):
         with patch("btc_toolkit.api._urlopen", return_value=response(big)), \
                 self.assertRaisesRegex(MempoolAPIError, "larger than"):
             api.get_json("/x")
-        clock = iter([0.0, 1000.0, 1000.0, 1000.0])  # the second chunk arrives after the deadline
+        # The second chunk arrives after the deadline. Only api's own `time` is replaced: patching the global
+        # time.monotonic would also feed this fake clock to any other thread still running.
+        clock = iter([0.0, 1000.0, 1000.0, 1000.0])
+        fake_time = types.SimpleNamespace(monotonic=lambda: next(clock), sleep=time.sleep)
         with patch("btc_toolkit.api._urlopen", return_value=response([b"[", b"1]"])), \
-                patch("btc_toolkit.api.time.monotonic", side_effect=lambda: next(clock)), \
+                patch("btc_toolkit.api.time", fake_time), \
                 self.assertRaisesRegex(MempoolAPIError, "not received within"):
             api.get_json("/x")
 
