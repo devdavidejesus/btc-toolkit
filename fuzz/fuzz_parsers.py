@@ -5,7 +5,8 @@ does not control: API responses, scripts inside them, and user input.
 Properties checked:
 - the OP_RETURN script parsers never raise;
 - every API parser (decode_op_return, get_tx with inputs/outputs, get_balance,
-  get_utxos, get_fees, get_block, get_inscriptions), fed arbitrary JSON, only
+  get_address_overview, get_utxos, get_fees, get_block, get_inscriptions,
+  verify_tx), fed arbitrary JSON, only
   raises MempoolAPIError (a clean, exit-code-1 error) — never a crash, never a
   misleading ValueError;
 - input validators and offline decoders (addresses, raw transactions, block
@@ -35,7 +36,7 @@ KEYS = ["vin", "vout", "status", "prevout", "value", "sequence", "is_coinbase", 
         "scriptpubkey_type", "chain_stats", "mempool_stats", "funded_txo_sum", "spent_txo_sum", "tx_count",
         "address", "fastestFee", "halfHourFee", "hourFee", "economyFee", "minimumFee", "count", "vsize",
         "total_fee", "id", "height", "timestamp", "merkle_root", "previousblockhash", "nonce", "bits",
-        "difficulty", "mediantime"]
+        "difficulty", "mediantime", "block_hash", "merkle", "pos"]
 
 
 def _json(fdp: atheris.FuzzedDataProvider, depth: int = 0) -> object:
@@ -62,6 +63,30 @@ def _text(fdp: atheris.FuzzedDataProvider) -> str:
     if fdp.ConsumeBool():
         return fdp.ConsumeBytes(fdp.ConsumeIntInRange(0, 120)).hex()
     return fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 200))
+
+
+# The genesis block's coinbase, a raw transaction the fuzzer can always start from.
+GENESIS_TX = ("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468"
+              "652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e6420"
+              "6261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105c"
+              "d6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac0000"
+              "0000")
+
+
+def _consistent_verify(fdp: atheris.FuzzedDataProvider, raw_hex: str) -> tuple[str, object, object, str]:
+    """API answers for verify that agree with each other, so the checks after the first ones are reached:
+    the header commits to the Merkle root and the status names the header's hash and the proof's height."""
+    with suppress(ValueError):
+        txid = rawtx.decode_tx(rawtx.parse_hex(raw_hex), "mainnet").txid
+        branch = [fdp.ConsumeBytes(32).ljust(32, b"\0").hex() for _ in range(fdp.ConsumeIntInRange(0, 4))]
+        pos = fdp.ConsumeIntInRange(0, (1 << len(branch)) - 1)
+        root = verify.merkle_root_from_proof(txid, branch, pos)
+        raw = bytearray(fdp.ConsumeBytes(80).ljust(80, b"\0"))
+        raw[36:68] = bytes.fromhex(root)[::-1]
+        height = fdp.ConsumeIntInRange(0, 2**31)
+        status = {"confirmed": True, "block_hash": verify.parse_header(bytes(raw)).hash, "block_height": height}
+        return txid, status, {"block_height": height, "merkle": branch, "pos": pos}, raw.hex()
+    return TXID, None, None, ""
 
 
 def TestOneInput(data: bytes) -> None:
@@ -120,7 +145,17 @@ def TestOneInput(data: bytes) -> None:
                                           fdp.ConsumeIntInRange(-1, 16))
     else:  # every API parser over arbitrary JSON: only MempoolAPIError is allowed
         data, text = _json(fdp), _text(fdp)
-        which = fdp.ConsumeIntInRange(0, 9)
+        proof, header = _json(fdp), _text(fdp)
+        which = fdp.ConsumeIntInRange(0, 11)
+        # verify: a raw transaction that decodes is checked against its own txid, so the
+        # fuzzer gets past the hash check and into the Merkle proof and the header.
+        try:
+            vtxid = rawtx.decode_tx(rawtx.parse_hex(text), "mainnet").txid
+        except ValueError:
+            vtxid = TXID
+        if which == 10 and fdp.ConsumeBool():
+            text = text if vtxid != TXID else GENESIS_TX
+            vtxid, data, proof, header = _consistent_verify(fdp, text)
         with patch.object(opreturn, "get_json", return_value=data), \
                 patch.object(tx, "get_json", return_value=data), \
                 patch.object(balance, "get_json", return_value=data), \
@@ -128,13 +163,16 @@ def TestOneInput(data: bytes) -> None:
                 patch.object(fees, "get_json", return_value=data), \
                 patch.object(block, "get_json", return_value=data), \
                 patch.object(block, "get_text", return_value=text), \
+                patch.object(verify, "get_json", side_effect=lambda p, *_: data if p.endswith("/status") else proof), \
+                patch.object(verify, "get_text", side_effect=lambda p, *_: text if p.endswith("/hex") else header), \
                 suppress(MempoolAPIError):
             result = [lambda: opreturn.decode_op_return(TXID), lambda: tx.get_tx(TXID),
                       lambda: balance.get_balance(ADDR), lambda: utxo.get_utxos(ADDR), fees.get_fees,
                       lambda: block.get_block("latest"), lambda: block.get_block(TXID),
                       lambda: tx.get_tx(TXID, inputs=True, outputs=True),
                       lambda: inscription.get_inscriptions(TXID),
-                      lambda: tx.get_tx(TXID, "custom", inputs=True, outputs=True)][which]()
+                      lambda: tx.get_tx(TXID, "custom", inputs=True, outputs=True),
+                      lambda: verify.verify_tx(vtxid), lambda: address.get_address_overview(ADDR)][which]()
             # What the CLI does next: derived values (fee rate, sizes, UTC times) and the JSON form.
             for item in result if isinstance(result, list) else [result]:
                 item.to_dict()

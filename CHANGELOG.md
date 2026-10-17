@@ -6,6 +6,12 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Changed
+- The fuzzer now also covers `verify` and the address overview: `verify_tx` is fed arbitrary API answers and,
+  half of the time, answers that agree with each other, so every check up to proof of work is reached.
+- Docs: the exit-code note says which commands return `1` for an unconfirmed transaction (only `verify`), and
+  `SECURITY.md` says that the repository's only lockfiles pin CI tools.
+
 ## [1.8.1] — 2026-10-15
 
 A new look, and a PyPI page that describes 1.8.0. The commands and the `--json` output are the same as in 1.8.0.

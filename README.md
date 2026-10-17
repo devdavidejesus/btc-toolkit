@@ -338,7 +338,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 - **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
 - **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
 - **Bounded waits** — `--timeout` (default 15s) applies to each network operation of each attempt, so with retries a command can wait longer than the timeout.
-- **Exit codes** — `0` success, `1` network/API error (including a `verify` whose checks fail, or a transaction not confirmed yet), `2` invalid input. Script accordingly.
+- **Exit codes** — `0` success, `1` network/API error (including a `verify` whose checks fail or whose transaction is not confirmed yet), `2` invalid input. Script accordingly.
 - **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
 
 ## Testing

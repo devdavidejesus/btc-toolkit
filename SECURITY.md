@@ -33,8 +33,9 @@ important — what it does not.
 
 ## Zero dependencies — as a security property
 
-The package depends on the Python standard library only. There is no
-`requirements.txt`, no lockfile, nothing to resolve at install time. That means:
+The package depends on the Python standard library only. It has no
+requirements file and no lockfile, and nothing is resolved at install time (the
+only lockfiles in the repository pin CI tools by hash). That means:
 
 - **No supply-chain surface** through third-party packages: a compromised
   upstream library cannot ship inside btc-toolkit, because there are none.
