@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest a new command, flag or improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        btc-toolkit reads and verifies Bitcoin data with the Python standard library only. It will not hold keys,
+        sign or broadcast transactions, or add runtime dependencies (see "Roadmap" in the README).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do, and why?
+      description: The problem or use case, before any solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Command, flag or output you have in mind. An example invocation helps.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

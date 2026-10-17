@@ -447,7 +447,7 @@ check consensus rules. For sovereign, trustless verification, run
 - [x] **Phase 4** — Block Info Explorer
 - [x] **Phase 5** — UTXO Set Inspector
 
-The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — one philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), shell completion ([#58](https://github.com/devdavidejesus/btc-toolkit/issues/58), [#62](https://github.com/devdavidejesus/btc-toolkit/issues/62)), plain Esplora backends ([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63)); [`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute) marks the easy ones. Out of scope, for good: keys, signing, broadcasting and runtime dependencies. One philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
 
 ## Don't Trust, Verify
 

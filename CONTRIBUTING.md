@@ -1,7 +1,10 @@
 # Contributing to btc-toolkit
 
 Thanks for considering a contribution. Bug reports, questions and pull requests
-are all welcome.
+are all welcome. Everyone taking part follows the
+[Code of Conduct](https://github.com/devdavidejesus/btc-toolkit/blob/main/CODE_OF_CONDUCT.md),
+and issues labelled [`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute)
+are a good place to start.
 
 ## Reporting bugs and requesting features
 
@@ -18,7 +21,7 @@ including them is fine.
 1. Fork the repository and create a branch from `main`.
 2. Make your change, with tests (see below).
 3. Open a pull request against `main`. Every pull request runs the full CI:
-   the test suite on Python 3.11–3.14 (Linux) and on macOS and Windows, a test of
+   the test suite on Python 3.11–3.15 (Linux) and on macOS and Windows, a test of
    the built wheel, `ruff`, `mypy --strict`, line and branch coverage (90% floor),
    the Atheris fuzzer and CodeQL. `main` is protected — a
    pull request can only be merged when all required checks pass.

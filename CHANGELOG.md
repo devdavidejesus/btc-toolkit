@@ -6,6 +6,11 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Added
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), issue forms for bug reports and feature requests (security
+  reports go to private reporting), and a pull request template.
+- Python 3.15 in the CI test matrix and the package classifiers.
+
 ### Changed
 - The fuzzer now also covers `verify` and the address overview: `verify_tx` is fed arbitrary API answers and,
   half of the time, answers that agree with each other, so every check up to proof of work is reached.
