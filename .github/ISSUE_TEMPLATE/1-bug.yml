@@ -1,0 +1,80 @@
+name: Bug report
+description: A command crashed, printed something wrong, or exited with the wrong code.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Txids and addresses are public data, so include them. Never paste seeds or private keys:
+        btc-toolkit never needs them. Security problems go to private reporting, not here (see SECURITY.md).
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options:
+        - address
+        - balance
+        - block
+        - decode
+        - fees
+        - inscription
+        - opreturn
+        - tx
+        - utxo
+        - validate
+        - verify
+        - other or general
+    validations:
+      required: true
+  - type: textarea
+    id: invocation
+    attributes:
+      label: Exact command line
+      placeholder: btc-toolkit tx <txid> --json
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior (full output and exit code)
+      description: "Exit code: run `echo $?` (Linux/macOS) or `echo $LASTEXITCODE` (PowerShell) right after the command."
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Output of `btc-toolkit --version`
+      placeholder: btc-toolkit 1.8.1
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Output of `python3 --version`
+      placeholder: Python 3.13.1
+    validations:
+      required: true
+  - type: input
+    id: backend
+    attributes:
+      label: API backend (only if you use --api-url or BTC_TOOLKIT_API_URL)
+      placeholder: default (mempool.space) / self-hosted mempool
