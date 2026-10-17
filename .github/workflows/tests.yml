@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  # Job id and matrix key are load-bearing: branch protection requires the "test (3.x)" checks by name.
+  # Job ids and matrix keys are load-bearing: branch protection requires these checks by name —
+  # test (3.x), os-compat (<os>, <version>), package, coverage and lint.
   test:
     runs-on: ubuntu-latest
     strategy:
