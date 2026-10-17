@@ -96,7 +96,7 @@ pip install -e .
 ```
 
 **Shell completion** (optional): static scripts in
-[`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash and zsh — tab-complete
+[`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash, zsh and fish — tab-complete
 commands, networks and flags, zero dependencies as always. The Homebrew formula installs them for you.
 
 ## Usage
@@ -311,7 +311,7 @@ btc-toolkit/
 │   └── py.typed          # PEP 561 marker: the package ships its types
 ├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
 ├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
-├── completions/          # Static bash + zsh completions
+├── completions/          # Static bash, zsh + fish completions
 ├── assets/               # Logo, icon, social preview and the README demos
 ├── .github/
 │   ├── workflows/        # CI, release, CodeQL, fuzz, Scorecard, weekly live smoke test
