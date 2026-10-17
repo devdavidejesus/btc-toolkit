@@ -11,7 +11,8 @@ PyPI is what's in the repository.
 - The version lives in two places that must match: `pyproject.toml` and
   `btc_toolkit/__init__.py` (`--version` prints the latter). CI checks that the
   built wheel reports the version declared in `pyproject.toml`.
-- A release is an annotated git tag `vX.Y.Z` on `main`. Tags are never moved.
+- A release is an annotated git tag `vX.Y.Z` on `main`, signed with the
+  maintainer's SSH key (from 1.5.0 on). Tags are never moved.
 - JSON output changes follow the stability policy in
   [`json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md):
   breaking changes require a major version.
@@ -80,12 +81,27 @@ pypi-attestations verify pypi --repository https://github.com/devdavidejesus/btc
   pypi:btc_toolkit-X.Y.Z-py3-none-any.whl
 ```
 
+**Tag** — confirm the release tag was signed by the maintainer (releases from
+1.5.0 on). The key is the one below, also published as a signing key on the
+maintainer's GitHub account
+([`api.github.com/users/devdavidejesus/ssh_signing_keys`](https://api.github.com/users/devdavidejesus/ssh_signing_keys)):
+
+```bash
+git clone https://github.com/devdavidejesus/btc-toolkit /tmp/verify/src
+echo 'devdavidejesus namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPGFOjKqQObWB/EYg5nz7JjfMM0y+6CIiPZbni9NuJ3g' > /tmp/verify/allowed_signers
+git -C /tmp/verify/src -c gpg.ssh.allowedSignersFile=/tmp/verify/allowed_signers tag -v vX.Y.Z
+```
+
+Expected: `Good "git" signature for devdavidejesus with ED25519 key
+SHA256:BaJPOtXHqWfL3+yyjc1qObpqvqkvTvh+03r4+DeRjeQ`.
+
 **Source** — confirm the published sdist matches the tagged code:
 
 ```bash
 pip download btc-toolkit==X.Y.Z --no-deps --no-binary :all: -d /tmp/verify
 tar xzf /tmp/verify/btc_toolkit-X.Y.Z.tar.gz -C /tmp/verify
-git clone --branch vX.Y.Z https://github.com/devdavidejesus/btc-toolkit /tmp/verify/src
+[ -d /tmp/verify/src ] || git clone https://github.com/devdavidejesus/btc-toolkit /tmp/verify/src
+git -C /tmp/verify/src checkout -q vX.Y.Z
 diff -r /tmp/verify/btc_toolkit-X.Y.Z/btc_toolkit /tmp/verify/src/btc_toolkit && echo "source matches tag"
 ```
 
@@ -103,4 +119,5 @@ SHA-256, and `brew` refuses to install a file that does not match.
 
 - Reproducible-build byte identity of the wheel. The attestation proves where a
   file was built; the sdist ↔ tag diff above proves what it contains.
-- Releases up to 1.4.0 were uploaded manually and carry no attestations.
+- Releases up to 1.4.0 were uploaded manually and carry no attestations, and
+  their tags are not signed.
