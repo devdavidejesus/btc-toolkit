@@ -46,6 +46,29 @@ def _zsh_flags(commands: list[str]) -> dict[str, set[str]]:
     return out
 
 
+def _fish_flags(commands: list[str]) -> dict[str, set[str]]:
+    text = (COMPLETIONS / "btc-toolkit.fish").read_text(encoding="utf-8")
+    variables: dict[str, set[str]] = {}
+    for m in re.finditer(r"^\s*set\s+-l\s+(\w+)\s+(.+)$", text, re.M):
+        variables[m.group(1)] = set(m.group(2).split())
+    out: dict[str, set[str]] = {name: set() for name in commands}
+    for m in re.finditer(
+        r"complete\s+-c\s+btc-toolkit\s+-n\s+['\"]__fish_seen_subcommand_from\s+([^'\"]+)['\"]\s+.*?-l\s+([a-z-]+)",
+        text,
+    ):
+        target_str, flag = m.group(1), f"--{m.group(2)}"
+        targets: set[str] = set()
+        for token in target_str.split():
+            if token.startswith("$"):
+                targets |= variables.get(token[1:], set())
+            else:
+                targets.add(token)
+        for name in targets:
+            if name in out:
+                out[name].add(flag)
+    return out
+
+
 class TestCompletions(unittest.TestCase):
     def setUp(self) -> None:
         self.cli = _cli_flags()
@@ -60,11 +83,19 @@ class TestCompletions(unittest.TestCase):
         listed = re.findall(r"^\s+'(\w+):", text, re.M)
         self.assertEqual(sorted(listed), sorted(self.cli))
 
+    def test_fish_commands(self) -> None:
+        text = (COMPLETIONS / "btc-toolkit.fish").read_text(encoding="utf-8")
+        listed = re.findall(r"complete -c btc-toolkit -n ['\"]__fish_use_subcommand['\"] -a (\w+)", text)
+        self.assertEqual(sorted(listed), sorted(self.cli))
+
     def test_bash_flags_per_command(self) -> None:
         self.assertEqual(_bash_flags(list(self.cli)), self.cli)
 
     def test_zsh_flags_per_command(self) -> None:
         self.assertEqual(_zsh_flags(list(self.cli)), self.cli)
+
+    def test_fish_flags_per_command(self) -> None:
+        self.assertEqual(_fish_flags(list(self.cli)), self.cli)
 
 
 if __name__ == "__main__":

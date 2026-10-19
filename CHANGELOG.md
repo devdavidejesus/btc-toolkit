@@ -7,6 +7,7 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 ## [Unreleased]
 
 ### Added
+- Static fish shell completion (`completions/btc-toolkit.fish`) alongside bash and zsh.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), issue forms for bug reports and feature requests (security
   reports go to private reporting), and a pull request template.
 - Python 3.15 in the CI test matrix and the package classifiers.
