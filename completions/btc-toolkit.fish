@@ -26,8 +26,8 @@ complete -c btc-toolkit -n "__fish_use_subcommand" -a verify -d "Check a transac
 set -l commands opreturn tx address balance fees block utxo validate inscription decode verify
 complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -l json -d "Output as JSON"
 complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -s n -l network -x -a "mainnet testnet signet" -d "Bitcoin network"
-complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -l api-url -r -d "Custom Mempool instance API root"
-complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -l timeout -r -d "Per-request timeout in seconds"
+complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -l api-url -x -d "Custom Mempool instance API root"
+complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -l timeout -x -d "Per-request timeout in seconds"
 complete -c btc-toolkit -n "__fish_seen_subcommand_from $commands" -s h -l help -d "Show help"
 
 # Batch file input (all subcommands except fees and decode)
@@ -37,7 +37,7 @@ complete -c btc-toolkit -n "__fish_seen_subcommand_from $file_commands" -l file 
 # Command-specific flags
 complete -c btc-toolkit -n "__fish_seen_subcommand_from opreturn" -l raw -d "Show raw hex only, one per line"
 complete -c btc-toolkit -n "__fish_seen_subcommand_from utxo" -l confirmed-only -d "Exclude unconfirmed (mempool) UTXOs"
-complete -c btc-toolkit -n "__fish_seen_subcommand_from utxo" -l limit -r -d "Max UTXOs to display (default 15)"
+complete -c btc-toolkit -n "__fish_seen_subcommand_from utxo" -l limit -x -d "Max UTXOs to display (default 15)"
 complete -c btc-toolkit -n "__fish_seen_subcommand_from tx" -l inputs -d "List each input"
 complete -c btc-toolkit -n "__fish_seen_subcommand_from tx" -l outputs -d "List each output and whether it is spent"
-complete -c btc-toolkit -n "__fish_seen_subcommand_from decode" -l txid -r -d "Fetch the raw transaction of this txid"
+complete -c btc-toolkit -n "__fish_seen_subcommand_from decode" -l txid -x -d "Fetch the raw transaction of this txid"

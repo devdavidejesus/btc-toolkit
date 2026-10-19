@@ -97,7 +97,7 @@ pip install -e .
 
 **Shell completion** (optional): static scripts in
 [`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash, zsh and fish — tab-complete
-commands, networks and flags, zero dependencies as always. The Homebrew formula installs them for you.
+commands, networks and flags, zero dependencies as always. The Homebrew formula installs the bash and zsh ones for you.
 
 ## Usage
 
