@@ -59,343 +59,80 @@ Options go **after** the command: `btc-toolkit fees --network signet`, not
 | `btc-toolkit validate <address>` | Check an address **offline**: checksum, network, type — nothing is sent |
 | `btc-toolkit inscription <txid>` | Ordinals inscription envelopes in a transaction: content type, size, SHA-256, text |
 
-## Installation
+Every command, option and example: [**command reference**](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/commands.md).
 
-**Requirements:** Python 3.11+. Supported versions follow CPython's own support window: a Python version is
-dropped in the first minor release after it reaches end of life ([policy](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md#supported-python-versions)).
+## What it verifies, and what it doesn't
 
-```bash
-pip install btc-toolkit
-```
+**Inspect Bitcoin data. Verify what you can. Know what you trust.**
 
-Or isolated, via [pipx](https://pipx.pypa.io):
+btc-toolkit is an explorer client for the terminal: a fast, scriptable way to inspect the Bitcoin blockchain
+without running infrastructure, for scripting, quick lookups, and learning how Bitcoin data is structured. It reads
+a Mempool API — mempool.space by default, or your own instance. Most commands report what that API says; some
+check it, or need no API at all:
 
-```bash
-pipx install btc-toolkit
-```
+| Command | Computed by btc-toolkit | Taken from the API |
+|---|---|---|
+| `validate` | Checksum, network and type — offline | Nothing |
+| `decode` | Everything, from the raw bytes — offline | With `--txid`, the raw transaction, checked against the txid (which does not cover the witness) |
+| `verify` | The txid, the Merkle root, the header hash and its proof of work | The raw transaction, the Merkle proof and the header (each checked), and the block height |
+| `tx` | The addresses in `--inputs` / `--outputs`, from each output script, on a named network | Status, fee, values and what spent each output |
+| `address` | The address type, from the checksum-verified address | Balances, lifetime totals and counts |
+| `opreturn`, `inscription` | The decoding of the scripts and envelopes | The transaction, unchecked (`decode --txid` checks one); inscriptions could not be checked even then, as a txid does not commit to the witness |
+| `balance`, `utxo` | The address check, before any request | Balances and UTXOs |
+| `block`, `fees` | Nothing | Everything shown |
 
-Or with [uv](https://docs.astral.sh/uv/): run it once without installing anything, or install it as a tool:
+What no command does: validate blocks, follow the most-work chain, or check consensus rules. For sovereign,
+trustless verification, run [Bitcoin Core](https://bitcoincore.org) and query it directly. The full threat model is
+in [`SECURITY.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md); how releases are built and how to verify one yourself, in
+[`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md).
 
-```bash
-uvx btc-toolkit block 0
-uv tool install btc-toolkit
-```
-
-Or via [Homebrew](https://brew.sh) on macOS and Linux, with shell completion included:
-
-```bash
-brew install devdavidejesus/tap/btc-toolkit
-```
-
-From source:
-
-```bash
-git clone https://github.com/devdavidejesus/btc-toolkit.git
-cd btc-toolkit
-pip install -e .
-```
-
-**Shell completion** (optional): static scripts in
-[`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash, zsh and fish — tab-complete
-commands, networks and flags, zero dependencies as always. The Homebrew formula installs the bash and zsh ones for you.
-
-## Usage
-
-### tx — inspect any transaction
-
-```bash
-btc-toolkit tx f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
-```
-
-Shows confirmation status and block, fee and fee rate (sat/vB), total input/output, size/weight/vsize, version, locktime — and flags coinbase and RBF-signaling transactions.
-
-![btc-toolkit tx demo](https://raw.githubusercontent.com/devdavidejesus/btc-toolkit/main/assets/demo.png)
-
-```bash
-# Every input (the output it spends, value, address) and every output (address, spent or not, and by what)
-btc-toolkit tx <txid> --inputs --outputs
-
-# JSON output for scripting
-btc-toolkit tx <txid> --json
-```
-
-Addresses in `--inputs`/`--outputs` are computed locally from each output script, not taken from the API. With `--api-url` and no `-n`, the chain is unknown: the API's address is shown if it is a valid address (it is not checked against the script).
-
-### address — aggregated overview
-
-```bash
-btc-toolkit address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
-```
-
-One call, full picture: address type (P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A or `witness_vN` — decoded offline from the checksum-verified address, per BIP 13/173/350), confirmed and unconfirmed balance, lifetime received/spent, and transaction counts.
-
-```bash
-# JSON output for scripting
-btc-toolkit address <address> --json
-```
-
-### balance — check any address
-
-```bash
-btc-toolkit balance 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
-```
-
-Shows the confirmed balance in BTC and satoshis and, when the address has a non-zero unconfirmed amount, that amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), Taproot, P2A and future witness versions.
-
-```bash
-# JSON output for scripting
-btc-toolkit balance <address> --json
-
-# Testnet or signet
-btc-toolkit balance <address> --network testnet
-btc-toolkit balance <address> --network signet
-```
-
-BTC conversion uses integer arithmetic (no floats) — satoshi-exact, always.
-
-### fees — current rates and mempool backlog
-
-```bash
-btc-toolkit fees
-```
-
-Shows the five recommended fee tiers (sat/vB) — fastest, half hour, hour, economy, minimum — plus mempool backlog: pending tx count, size in vMB, and a rough estimate of blocks needed to clear it.
-
-```bash
-# JSON output for scripting
-btc-toolkit fees --json
-
-# Testnet
-btc-toolkit fees --network testnet
-```
-
-### block — inspect any block
-
-```bash
-btc-toolkit block latest          # chain tip
-btc-toolkit block 0               # by height (genesis)
-btc-toolkit block 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f   # by hash
-```
-
-Shows height, hash, mined timestamp (UTC), tx count, size, weight, difficulty, nonce, and previous block hash.
-
-```bash
-# JSON output for scripting
-btc-toolkit block latest --json
-
-# Testnet
-btc-toolkit block latest --network testnet
-```
-
-### utxo — unspent outputs of any address
-
-```bash
-btc-toolkit utxo bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
-```
-
-Lists UTXOs sorted by value (largest first; the first 15 by default, see `--limit`), with txid:vout, value in BTC and sats, confirmation status, and block height. Shows aggregate count and total value.
-
-> **Known limitation:** addresses with tens of thousands of UTXOs (e.g. Satoshi's genesis address, which has received over 80,000 outputs) exceed the upstream electrs response limit and return HTTP 400. Use `balance` for aggregate stats on such addresses — discovered and verified in production.
-
-```bash
-# Only confirmed UTXOs
-btc-toolkit utxo <address> --confirmed-only
-
-# Show more than 15 entries
-btc-toolkit utxo <address> --limit 50
-
-# JSON output (ignores --limit; --confirmed-only still applies)
-btc-toolkit utxo <address> --json
-```
-
-### opreturn — decode embedded messages
-
-```bash
-btc-toolkit opreturn f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab
-```
-
-```bash
-# JSON output
-btc-toolkit opreturn <txid> --json
-
-# Raw hex only
-btc-toolkit opreturn <txid> --raw
-```
-
-Known protocol markers are named by their prefix: a Runes Runestone (`OP_RETURN OP_13`), Omni Layer (a payload starting with `omni` — a plain text message can start that way too), and the BIP 141 witness commitment in a coinbase. They are tagged, not decoded.
-
-**Seen in the wild:** the $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded with this command, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159). And the wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n).
-
-btc-toolkit is also listed on bitcoin.org's [Development page](https://bitcoin.org/en/development#more) and among the [developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources.
-
-### Transactions to Try
-
-Real, verified OP_RETURN transactions on mainnet. Verify each one yourself on [mempool.space](https://mempool.space).
-
-| TXID | Description |
-|---|---|
-| `f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab` | "Craig Wright is a liar and a fraud" — 34 bytes ([verify on-chain](https://mempool.space/tx/f4ac7abcb689df30ec5e8d829733622f389ca91367c47b319bc582e653cd8cab)) |
-| `2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3` | "learnmeabitcoin" — 75-byte OP_RETURN with null-padded ASCII ([verify on-chain](https://mempool.space/tx/2033435de7ce307341231e818ed937cd3a5e8597381fd83a7e5b0234f61b38d3)) |
-
-> **Note:** Satoshi's famous "Chancellor on brink of second bailout for banks" message is in the
-> **coinbase scriptSig** of the genesis block — NOT in an OP_RETURN output. That's a common
-> misconception. This tool reads OP_RETURN outputs only, which is the standard mechanism
-> for embedding data in Bitcoin transactions (introduced as standard in Bitcoin Core v0.9.0, March 2014).
-
-### verify — check a transaction is in a block
+## verify — check a transaction is in a block
 
 ```bash
 btc-toolkit verify c103de95817b43f2df635ec6f35ff126ca26a7c6d20570c4b01866b2b3e69a19
 ```
 
-Instead of taking the API's "confirmed" on faith, `verify` recomputes from raw bytes:
+Instead of taking the API's "confirmed" on faith, `verify` recomputes the txid from the raw transaction, folds it up
+the Merkle proof to the root (refusing 64-byte transactions posing as nodes, CVE-2017-12842), hashes the 80-byte
+header that must contain that root, and checks its proof of work against the target its `bits` encode. The verdict
+depends only on the work proven:
 
-1. the **txid**, by hashing the raw transaction;
-2. the **Merkle root**, from that txid and the proof's sibling hashes — refusing any pair of nodes that is also a valid 64-byte transaction, which could pose as a node (CVE-2017-12842);
-3. the **block hash**, by hashing the 80-byte header — which must contain that root;
-4. the **proof of work**: the header hash is below the target its `bits` encode, within the network's limit.
+- **`✓ VERIFIED`** (`"work": "strong"`): a mainnet header at difficulty 50 T or more (btc-toolkit's own threshold, not a consensus rule) — about 2^77.5 hashes to forge.
+- **`⚠ CONSISTENT, WEAK WORK`** (`"work": "weak"`): everything checks out, but the header carries less work. That is cheap to fake: treat it as consistency, not proof. With `--json`, `verified` is `true` in both cases, so a script that must reject forged proofs should also require `"work": "strong"`.
 
-Any mismatch is `verification failed` (exit code `1`). The verdict depends only on the work proven — never on the height or date the API claims, since a forger picks those:
+It does **not** prove the block height (the API reports it) or that the block is in the chain everyone follows.
+Details: [command reference](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/commands.md#verify--check-a-transaction-is-in-a-block).
 
-- **`✓ VERIFIED`** (`"work": "strong"`): a mainnet header at difficulty 50 T or more (btc-toolkit's own threshold, not a consensus rule). Forging one takes about 2^77.5 hashes — over a third of a block's work at October 2026's difficulty (about 133 T).
-- **`⚠ CONSISTENT, WEAK WORK`** (`"work": "weak"`): everything checks out, but the header carries less work — an older block, or testnet, signet (block signatures are not checked) or an unknown chain. That little work is cheap to fake: treat it as consistency, not proof. With `--json`, `verified` is `true` in both cases, so a script that must reject forged proofs should also require `"work": "strong"`.
+## Installation
 
-With your own instance, add `-n mainnet` so `verify` knows which chain it is checking: `btc-toolkit verify <txid> --api-url http://umbrel.local:3006/api -n mainnet`.
-
-What it does **not** prove: the block height (the API reports it; a header does not contain it), or that the block is in the chain everyone follows. Only a full node checks everything.
-
-### decode — a raw transaction, offline
+Python 3.11+ ([supported versions](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md#supported-python-versions)), no dependencies:
 
 ```bash
-btc-toolkit decode 0100000001...           # or pipe it: cat tx.hex | btc-toolkit decode -
-btc-toolkit decode --txid <txid>           # fetch the raw tx and check it hashes to <txid>
+pipx install btc-toolkit                       # isolated, via pipx
+pip install btc-toolkit                        # or with pip
+uv tool install btc-toolkit                    # or with uv (uvx btc-toolkit ... runs it without installing)
+brew install devdavidejesus/tap/btc-toolkit    # or Homebrew, on macOS and Linux
+git clone https://github.com/devdavidejesus/btc-toolkit.git && pip install -e btc-toolkit   # or from source
 ```
 
-Version, inputs, outputs (with their addresses and script types), witness, locktime, txid and wtxid, size, weight and vsize — computed from the bytes. The fee is not shown: it needs the values of the outputs being spent, which a raw transaction does not carry (`tx` has it).
+**Shell completion** (optional): static scripts in [`completions/`](https://github.com/devdavidejesus/btc-toolkit/blob/main/completions) for bash, zsh and fish —
+tab-complete commands, networks and flags. The Homebrew formula installs them for you.
 
-### validate — check an address offline
+## Scripting
+
+Every command takes `--json`, and the commands that take a txid, address or block read one item per line from
+stdin (`-`) or a file (`--file`), emitting JSON Lines:
 
 ```bash
-btc-toolkit validate bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
-```
-
-Verifies the checksum (Base58Check, or bech32 / bech32m per BIP 173 and BIP 350, tested against their official vectors), the network and the type — P2PKH, P2SH, P2WPKH, P2WSH, P2TR, P2A, or `witness_vN` for future versions. Nothing is sent anywhere. `balance`, `address` and `utxo` run the same check first, so a typo is caught locally (exit code `2`) and never reaches the API. With `--api-url` and no `-n`, the chain is unknown, so an address of any network is accepted.
-
-### inscription — Ordinals envelopes
-
-```bash
-btc-toolkit inscription 6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799
-```
-
-Finds the `OP_FALSE OP_IF "ord" … OP_ENDIF` envelopes in each input's Taproot script — parsed by ord's own rules, from its source — and shows the inscription ID, content type, encoding, metaprotocol, parents, delegate, body size and SHA-256, and the text of a text inscription (control characters escaped). This is **envelope detection, not the ord index**: it does not assign inscription numbers, track sats or owners, or apply ord's "cursed" rules. The witness comes from the API: a txid does not commit to it, so it is not verified.
-
-## Architecture
-
-```
-btc-toolkit/
-├── btc_toolkit/
-│   ├── __init__.py       # Package version
-│   ├── __main__.py       # python -m entry point
-│   ├── cli.py            # Unified CLI: subcommands, batch mode, env vars, exit codes
-│   ├── api.py            # Shared Mempool HTTP client: retry, timeout, custom base URL
-│   ├── colors.py         # Shared terminal color helpers
-│   ├── opreturn.py       # OP_RETURN decoder
-│   ├── balance.py        # Address balance
-│   ├── fees.py           # Fee estimator
-│   ├── block.py          # Block explorer
-│   ├── utxo.py           # UTXO inspector
-│   ├── tx.py             # Transaction inspector
-│   ├── address.py        # Address overview + offline type detection
-│   ├── encoding.py       # Offline: bech32/bech32m, Base58Check, script types and addresses
-│   ├── rawtx.py          # Offline raw transaction decoder (legacy and SegWit)
-│   ├── verify.py         # Merkle-proof and proof-of-work verification
-│   ├── inscription.py    # Ordinals inscription envelope detection
-│   └── py.typed          # PEP 561 marker: the package ships its types
-├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
-├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
-├── completions/          # Static bash, zsh + fish completions
-├── assets/               # Logo, icon, social preview and the README demos
-├── .github/
-│   ├── workflows/        # CI, release, CodeQL, fuzz, Scorecard, weekly live smoke test
-│   ├── scripts/          # Release notes, live smoke test, demo recorder, brand assets
-│   └── requirements/     # Hash-pinned CI tools
-├── docs/
-│   ├── json-schema.md    # --json output per command + stability policy
-│   ├── python-api.md     # Using the toolkit as a typed Python library
-│   └── releases.md       # How releases are built and verified
-├── SECURITY.md           # Threat model + vulnerability reporting
-├── CONTRIBUTING.md       # How changes are made and what they must include
-├── CODE_OF_CONDUCT.md    # Contributor Covenant 3.0
-├── CHANGELOG.md          # Every release, newest first
-├── pyproject.toml
-├── LICENSE               # MIT
-└── README.md
-```
-
-Every subcommand shares one HTTP client (`api.py`) — a new command adds a module, a subcommand, its completions and tests; the HTTP layer stays untouched.
-
-Zero external dependencies — Python standard library only (`urllib`, `json`, `argparse`).
-
-## Reliability
-
-- **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
-- **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet (testnet3) and signet.
-- **Bounded waits** — `--timeout` (default 15s) applies to each network operation of each attempt, so with retries a command can wait longer than the timeout.
-- **Exit codes** — `0` success, `1` network/API error (including a `verify` whose checks fail or whose transaction is not confirmed yet), `2` invalid input. Script accordingly.
-- **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
-
-## Testing
-
-```bash
-python -m unittest discover -s tests -t . -v
-```
-
-Every command is tested with all API calls mocked — the suite runs offline, from the source tree, with nothing to install (`pytest` works too if you prefer it). Every pull request measures line and branch coverage and fails if it drops below 90%. The package is type-checked with `mypy --strict` and ships `py.typed`. A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
-
-## How balance is computed
-
-The Mempool.space `/address` endpoint returns `chain_stats` (confirmed) and `mempool_stats` (unconfirmed), each with `funded_txo_sum` and `spent_txo_sum` in satoshis.
-
-```
-confirmed   = chain_stats.funded_txo_sum   - chain_stats.spent_txo_sum
-unconfirmed = mempool_stats.funded_txo_sum - mempool_stats.spent_txo_sum
-total       = confirmed + unconfirmed
-```
-
-This is the same model used by Esplora/Electrs. Don't trust this README — verify against `https://mempool.space/api/address/<address>` yourself.
-
-## Automation
-
-btc-toolkit is built to sit inside pipelines. Every command takes `--json`,
-and the commands that take a txid, address or block read **one item per line**
-from stdin (`-`) or a file (`--file`), emitting JSON Lines you can pipe straight
-into `jq` (`decode -` reads a single raw transaction from stdin):
-
-```bash
-# many txids -> one JSON object per line
 cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'
-
-# or from a file (blank lines and lines starting with # are ignored)
-btc-toolkit balance --file addresses.txt --json
 ```
 
-Configuration through the environment — for Docker, CI, cron:
+Exit codes are a contract: `0` ok · `1` network/API failure (or a failed `verify`) · `2` invalid input. Output
+schemas and the stability policy: [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md); environment variables
+(`BTC_TOOLKIT_API_URL`, `BTC_TOOLKIT_NETWORK`, `BTC_TOOLKIT_TIMEOUT`, `NO_COLOR`), retries and timeouts:
+[scripting and configuration](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/commands.md#scripting-and-configuration).
 
-| Variable | Effect |
-|---|---|
-| `BTC_TOOLKIT_API_URL` | Default for `--api-url` (your own Mempool instance); ignored by `validate` and by `decode` without `--txid`. With it, the chain is `custom`: to name it, pass `--api-url` and `-n` together (`-n` alone switches to the public presets) |
-| `BTC_TOOLKIT_NETWORK` | Default for `--network` (`mainnet`, `testnet`, `signet`; anything else is an error, exit 2; ignored when an API URL is set) |
-| `BTC_TOOLKIT_TIMEOUT` | Default for `--timeout` (seconds, default 15) |
-| `NO_COLOR` | Any non-empty value disables colors ([no-color.org](https://no-color.org)) |
-
-Flags always win over environment variables. Exit codes are a contract
-(`0` ok · `1` network/API failure · `2` invalid input) in both text and JSON
-mode; in batch mode the worst code wins. Full output schemas and the
-stability policy: [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
-
-## Use it as a Python library
-
-Every command is also a plain, typed function — the package ships `py.typed`, so your type checker sees real types:
+Every command is also a plain, typed Python function (the package ships `py.typed`):
 
 ```python
 from btc_toolkit.opreturn import decode_op_return
@@ -408,49 +145,36 @@ Functions, result types and errors: [`docs/python-api.md`](https://github.com/de
 
 ## Use your own Mempool instance
 
-Every command accepts `--api-url` pointing to any self-hosted
-[Mempool](https://github.com/mempool/mempool) instance, which runs on top of your
-own Bitcoin node (Umbrel, Start9, RaspiBlitz and similar node stacks offer it as an app):
+Every command accepts `--api-url` pointing to a self-hosted [Mempool](https://github.com/mempool/mempool) instance,
+which runs on top of your own Bitcoin node (Umbrel, Start9, RaspiBlitz and similar node stacks offer it as an app):
 
 ```bash
 btc-toolkit balance <address> --api-url http://umbrel.local:3006/api -n mainnet
 ```
 
-`-n` tells btc-toolkit which chain your instance serves. Without it the chain is
-`custom` (unknown): addresses of any Bitcoin network (mainnet, testnet/signet,
-regtest) are accepted, `tx` shows the API's addresses, and `verify` reports the
-work as weak. Results never link to mempool.space when you use your own instance.
+`-n` tells btc-toolkit which chain your instance serves. Without it the chain is `custom` (unknown): addresses of
+any Bitcoin network (mainnet, testnet/signet, regtest) are accepted, `tx` shows the API's addresses, and `verify`
+reports the work as weak. Results never link to mempool.space when you use your own instance. With your own
+instance, no third party sees your queries — the public mempool.space API is the zero-setup default, not a
+requirement.
 
-With your own instance, no third party sees your queries — the public
-mempool.space API is the zero-setup default, not a requirement.
+## Seen in the wild
 
-## What this is / What this isn't
+- The $320M Liquid Network drain (Sept 2026) was negotiated on-chain via OP_RETURN — every message of it decoded
+  with `opreturn`, transaction IDs included: [*I Read a $320M Ransom Negotiation From My Terminal*](https://dev.to/devdavidejesus/i-read-a-320m-ransom-negotiation-from-my-terminal-1159).
+- The wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read
+  with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n).
 
-The full threat model — what the tool protects against and what it does **not** — lives in [`SECURITY.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md); how releases are built and how to verify one yourself is in [`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md).
-
-**This is** an explorer client for the terminal — a fast, scriptable way to
-inspect the Bitcoin blockchain without running infrastructure. Ideal for
-learning, scripting, quick lookups, and teaching how Bitcoin data is
-structured.
-
-**This isn't** a substitute for a full node. Data comes from a Mempool API
-(mempool.space by default, or your own instance), and most commands report what
-it says. Some checks don't trust it: addresses are validated offline, `decode`
-works on raw bytes, and `verify` recomputes a transaction's inclusion in a block
-— its Merkle proof and the block's proof of work — instead of taking "confirmed"
-on faith. What no command does: validate blocks, follow the most-work chain, or
-check consensus rules. For sovereign, trustless verification, run
-[Bitcoin Core](https://bitcoincore.org) and query it directly.
+btc-toolkit is listed on bitcoin.org's [Development page](https://bitcoin.org/en/development#more) and among the
+[developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources.
 
 ## Roadmap
 
-- [x] **Phase 1** — OP_RETURN Reader
-- [x] **Phase 2** — Address Balance Checker
-- [x] **Phase 3** — Fee Estimator (mempool-based)
-- [x] **Phase 4** — Block Info Explorer
-- [x] **Phase 5** — UTXO Set Inspector
-
-The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), zsh completion of options ([#58](https://github.com/devdavidejesus/btc-toolkit/issues/58)), plain Esplora backends ([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63)); [`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute) marks the easy ones. Out of scope, for good: keys, signing, broadcasting and runtime dependencies. One philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+The original five-phase roadmap (OP_RETURN reader, balance, fees, blocks, UTXOs) shipped in v1.0.0; every release
+since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — testnet4
+([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), plain Esplora backends ([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63));
+[`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute) marks the easy ones. Out of scope,
+for good: keys, signing, broadcasting and runtime dependencies.
 
 ## Don't Trust, Verify
 
@@ -473,7 +197,9 @@ btc-toolkit is free, MIT-licensed and has no sponsor. If it's useful to you, you
 
 ## Contributing
 
-Found a bug or want to propose or build a new command? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution keeps the core rules — stdlib only, tests with every change, claims verifiable on-chain. The process and requirements are in [`CONTRIBUTING.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/CONTRIBUTING.md).
+Found a bug or want to propose or build a new command? Open an [issue](https://github.com/devdavidejesus/btc-toolkit/issues) or a PR. Every contribution keeps the
+core rules — stdlib only, tests with every change, claims verifiable on-chain. The process, the project layout and
+how to run the tests are in [`CONTRIBUTING.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/CONTRIBUTING.md).
 
 ---
 

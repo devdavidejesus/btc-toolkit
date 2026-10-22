@@ -52,6 +52,10 @@ class MempoolAPIError(Exception):
     """Raised when the Mempool.space API returns an error."""
 
 
+class BadRequestError(MempoolAPIError):
+    """The API refused the request as invalid (HTTP 400)."""
+
+
 class NotFoundError(MempoolAPIError):
     """Raised when a requested resource (tx, address, block) is not found."""
 
@@ -233,6 +237,8 @@ def _fetch(path: str, network: str) -> bytes:
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise NotFoundError(f"Not found: {path}") from e
+            if e.code == 400:
+                raise BadRequestError(f"API error 400: {e.reason}") from e
             if e.code in _RETRYABLE_STATUS and not last_attempt:
                 time.sleep(_BACKOFF_BASE * (2 ** attempt))
                 continue

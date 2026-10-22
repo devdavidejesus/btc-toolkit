@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 from btc_toolkit.api import (
     get_json, get_api_base, set_api_base, set_timeout,
-    MempoolAPIError, NotFoundError,
+    BadRequestError, MempoolAPIError, NotFoundError,
 )
 
 
@@ -70,7 +70,7 @@ class TestRetry(unittest.TestCase):
     @patch("btc_toolkit.api._urlopen")
     def test_400_never_retried(self, mock_open, mock_sleep):
         mock_open.side_effect = [_http_error(400)]
-        with self.assertRaises(MempoolAPIError):
+        with self.assertRaises(BadRequestError):  # a MempoolAPIError, raised as its own type
             get_json("/x")
         self.assertEqual(mock_open.call_count, 1)
         mock_sleep.assert_not_called()

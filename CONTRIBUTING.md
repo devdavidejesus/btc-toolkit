@@ -49,6 +49,54 @@ including them is fine.
 - User-visible changes get a line in
   [`CHANGELOG.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md) under `[Unreleased]`.
 
+## Project layout
+
+```
+btc-toolkit/
+├── btc_toolkit/
+│   ├── __init__.py       # Package version
+│   ├── __main__.py       # python -m entry point
+│   ├── cli.py            # Unified CLI: subcommands, batch mode, env vars, exit codes
+│   ├── api.py            # Shared Mempool HTTP client: retry, timeout, custom base URL
+│   ├── colors.py         # Shared terminal color helpers
+│   ├── opreturn.py       # OP_RETURN decoder
+│   ├── balance.py        # Address balance
+│   ├── fees.py           # Fee estimator
+│   ├── block.py          # Block explorer
+│   ├── utxo.py           # UTXO inspector
+│   ├── tx.py             # Transaction inspector
+│   ├── address.py        # Address overview + offline type detection
+│   ├── encoding.py       # Offline: bech32/bech32m, Base58Check, script types and addresses
+│   ├── rawtx.py          # Offline raw transaction decoder (legacy and SegWit)
+│   ├── verify.py         # Merkle-proof and proof-of-work verification
+│   ├── inscription.py    # Ordinals inscription envelope detection
+│   └── py.typed          # PEP 561 marker: the package ships its types
+├── tests/                # One file per module, plus CLI, completion and robustness tests — all API calls mocked
+├── fuzz/                 # Atheris fuzzer for the parsers of untrusted data
+├── completions/          # Static bash, zsh + fish completions
+├── assets/               # Logo, icon, social preview and the README demos
+├── .github/
+│   ├── workflows/        # CI, release, CodeQL, fuzz, Scorecard, weekly live smoke test
+│   ├── scripts/          # Release notes, live smoke test, demo recorder, brand assets
+│   └── requirements/     # Hash-pinned CI tools
+├── docs/
+│   ├── commands.md       # Every command, option and example
+│   ├── json-schema.md    # --json output per command + stability policy
+│   ├── python-api.md     # Using the toolkit as a typed Python library
+│   └── releases.md       # How releases are built and verified
+├── SECURITY.md           # Threat model + vulnerability reporting
+├── CONTRIBUTING.md       # How changes are made and what they must include
+├── CODE_OF_CONDUCT.md    # Contributor Covenant 3.0
+├── CHANGELOG.md          # Every release, newest first
+├── pyproject.toml
+├── LICENSE               # MIT
+└── README.md
+```
+
+Every subcommand shares one HTTP client (`api.py`) — a new command adds a module, a subcommand, its completions and tests; the HTTP layer stays untouched.
+
+Zero external dependencies — Python standard library only (`urllib`, `json`, `argparse`).
+
 ## Running the checks locally
 
 ```bash
@@ -59,6 +107,8 @@ mypy --strict btc_toolkit/
 pip install atheris                              # optional: fuzz the parsers
 PYTHONPATH=. python fuzz/fuzz_parsers.py -max_total_time=60
 ```
+
+All API calls are mocked, so the suite runs offline from the source tree (`pytest` works too). A separate weekly job reads known on-chain facts from mainnet, and an [Atheris](https://github.com/google/atheris) fuzzer exercises every parser of untrusted data on each change.
 
 By contributing, you agree that your contributions are licensed under the
 project's [MIT License](https://github.com/devdavidejesus/btc-toolkit/blob/main/LICENSE).

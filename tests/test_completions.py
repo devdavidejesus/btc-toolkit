@@ -1,7 +1,11 @@
 """The static shell completions must offer exactly the commands and flags the CLI accepts."""
 
 import argparse
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -96,6 +100,82 @@ class TestCompletions(unittest.TestCase):
 
     def test_fish_flags_per_command(self) -> None:
         self.assertEqual(_fish_flags(list(self.cli)), self.cli)
+
+
+# Typed so far -> what Tab must produce. Options after the subcommand and after an operand are the cases a static
+# check cannot see: in 1.8.1 zsh completed command names but no option at all.
+CASES = [
+    ("btc-toolkit ver", "verify"),
+    ("btc-toolkit tx --in", "--inputs"),
+    ("btc-toolkit tx abc --out", "--outputs"),
+    ("btc-toolkit block 0 -n s", "signet"),
+    ("btc-toolkit decode --tx", "--txid"),
+]
+
+_ZSH = r"""
+zmodload zsh/zpty
+zpty z 'TERM=dumb zsh -f -i'
+zpty -w z "fpath=($1 \$fpath); autoload -Uz compinit; compinit -u -D; PS1='> '; unsetopt beep; btc-toolkit(){ :; }"
+zpty -w -n z "$2"$'\t'
+local out='' chunk
+for i in {1..100}; do
+  zpty -r -t z chunk && out+=$chunk
+  [[ $out == *"$3"* ]] && break
+  sleep 0.1
+done
+zpty -d z
+print -r -- "$out"
+"""
+
+_BASH = r"""
+source "$1"
+fn=$(complete -p btc-toolkit | sed -E 's/.*-F ([^ ]+).*/\1/')
+read -r -a COMP_WORDS <<< "$2"
+case "$2" in *" ") COMP_WORDS+=("") ;; esac
+COMP_CWORD=$(( ${#COMP_WORDS[@]} - 1 ))
+COMP_LINE="$2"; COMP_POINT=${#COMP_LINE}; COMPREPLY=()
+"$fn" btc-toolkit "${COMP_WORDS[$COMP_CWORD]}" "${COMP_WORDS[$((COMP_CWORD - 1))]}"
+echo "${COMPREPLY[*]}"
+"""
+
+
+@unittest.skipIf(os.name == "nt", "POSIX shells only")
+class TestCompletionsInRealShells(unittest.TestCase):
+    """Press Tab in a real zsh, bash and fish: the completion scripts must complete commands, options and values."""
+
+    def test_zsh(self) -> None:
+        zsh = shutil.which("zsh")
+        if zsh is None:
+            self.skipTest("zsh not installed")
+        fdir = self.enterContext(tempfile.TemporaryDirectory())
+        shutil.copy(COMPLETIONS / "btc-toolkit.zsh", Path(fdir) / "_btc-toolkit")  # the name zsh looks for
+        for typed, expected in CASES:
+            with self.subTest(typed=typed):
+                out = subprocess.run([zsh, "-f", "-c", _ZSH, "zsh", fdir, typed, expected],
+                                     capture_output=True, text=True, timeout=60).stdout
+                self.assertIn(expected, out)
+
+    def test_bash(self) -> None:
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("bash not installed")
+        script = str(COMPLETIONS / "btc-toolkit.bash")
+        for typed, expected in CASES:
+            with self.subTest(typed=typed):
+                out = subprocess.run([bash, "-c", _BASH, "bash", script, typed],
+                                     capture_output=True, text=True, timeout=60).stdout
+                self.assertIn(expected, out.split())
+
+    def test_fish(self) -> None:
+        fish = shutil.which("fish")
+        if fish is None:
+            self.skipTest("fish not installed")
+        script = str(COMPLETIONS / "btc-toolkit.fish")
+        for typed, expected in CASES:
+            with self.subTest(typed=typed):
+                out = subprocess.run([fish, "--no-config", "-c", "source $argv[1]; complete -C $argv[2]",
+                                      script, typed], capture_output=True, text=True, timeout=60).stdout
+                self.assertIn(expected, [line.split("\t")[0] for line in out.splitlines()])
 
 
 if __name__ == "__main__":

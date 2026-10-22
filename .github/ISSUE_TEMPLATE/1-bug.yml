@@ -52,7 +52,7 @@ body:
     id: version
     attributes:
       label: Output of `btc-toolkit --version`
-      placeholder: btc-toolkit 1.8.1
+      placeholder: btc-toolkit 1.8.2
     validations:
       required: true
   - type: dropdown

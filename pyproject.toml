@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btc-toolkit"
-version = "1.8.1"
+version = "1.8.2"
 description = "Read and verify Bitcoin from your terminal: OP_RETURN, inscriptions, raw transactions, offline address checks, Merkle-proof verify. Zero deps, no Bitcoin Core."
 readme = "README.md"
 license = "MIT"

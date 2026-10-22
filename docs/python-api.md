@@ -75,6 +75,7 @@ is `fee_sats` in JSON. The JSON contract is documented separately in
 ```text
 ValueError                        invalid input (bad txid, address, height, raw tx) — raised before any request
 MempoolAPIError                   network or API failure, including an unexpected response shape
+├── BadRequestError               the API refused the request (HTTP 400)
 ├── NotFoundError
 │   ├── TransactionNotFoundError  (btc_toolkit.opreturn)
 │   ├── AddressNotFoundError      (btc_toolkit.balance)
@@ -83,7 +84,8 @@ MempoolAPIError                   network or API failure, including an unexpecte
 └── NotConfirmedError             (btc_toolkit.verify) not in a block yet
 ```
 
-`MempoolAPIError` and `NotFoundError` live in `btc_toolkit.api`.
+`MempoolAPIError`, `NotFoundError` and `BadRequestError` live in `btc_toolkit.api`. `get_utxos` turns a
+`BadRequestError` into a `MempoolAPIError` that explains it (the original is its `__cause__`).
 
 ## Configuration
 

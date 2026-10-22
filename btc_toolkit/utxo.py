@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from typing import Any
 from .api import get_json, as_array, field_bool, field_hash, field_int, field_object, field_opt_int
-from .api import MempoolAPIError, NotFoundError
+from .api import BadRequestError, MempoolAPIError, NotFoundError
 from .balance import _validate_address, AddressNotFoundError, SATS_PER_BTC
 
 
@@ -107,6 +107,12 @@ def get_utxos(
         data = as_array(get_json(f"/address/{address}/utxo", network), "/address/utxo")
     except NotFoundError as e:
         raise AddressNotFoundError(f"Address not found: {address}") from e
+    except BadRequestError as e:
+        # The address is valid (checked above): mempool.space answers 400 when the UTXO set is too large to list.
+        raise MempoolAPIError(
+            f"{e} — the API refused to list this address's UTXOs, as it does for addresses with tens of thousands "
+            "of them. `balance` still works for such an address."
+        ) from e
 
     path = "/address/utxo"
     utxos = []

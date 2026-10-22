@@ -127,6 +127,10 @@ def merkle_root_from_proof(txid: str, branch: list[str], pos: int) -> str:
     Raises ValueError on a malformed branch, and when a pair of nodes is also a
     valid 64-byte transaction: such a "node" could be a transaction posing as
     an inner node, proving a txid that is not in the block (CVE-2017-12842).
+    Also when a node's left sibling is a copy of itself: Bitcoin duplicates the
+    last node of an odd level as its right sibling, so that pairing only ever
+    puts the original on the left, and a position on the right points past the
+    last transaction.
     """
     if not all(isinstance(h, str) and _is_hash(h) for h in [txid, *branch]):
         raise ValueError("txid and branch hashes must be 64 hex digits")
@@ -135,6 +139,8 @@ def merkle_root_from_proof(txid: str, branch: list[str], pos: int) -> str:
     node = bytes.fromhex(txid)[::-1]
     for sibling_hex in branch:
         sibling = bytes.fromhex(sibling_hex)[::-1]
+        if pos & 1 and sibling == node:
+            raise ValueError("the position points past the last transaction (a duplicated node is never on the right)")
         pair = sibling + node if pos & 1 else node + sibling
         if _decodes_as_tx(pair):
             raise ValueError("a pair of Merkle nodes is also a valid 64-byte transaction (CVE-2017-12842)")
