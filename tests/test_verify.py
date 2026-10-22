@@ -78,6 +78,35 @@ class TestHeaderAndMerkle(unittest.TestCase):
         with self.assertRaises(ValueError):
             merkle_root_from_proof(GENESIS_TXID, [], 1)
 
+    def test_positions_past_the_last_transaction_are_refused(self):
+        # In a tree of n leaves, the proof of the last leaf also hashes to the root at positions n.. (the
+        # duplicated nodes): those transactions do not exist, so only positions below n may be accepted.
+        for n in range(1, 18):
+            leaves = [hashlib.sha256(bytes([n, i])).digest() for i in range(n)]
+            level, levels = leaves, [leaves]
+            while len(level) > 1:
+                if len(level) % 2:
+                    level = level + [level[-1]]
+                level = [sha256d(level[i] + level[i + 1]) for i in range(0, len(level), 2)]
+                levels.append(level)
+            root = levels[-1][0][::-1].hex()
+            for pos in range(n):
+                branch, idx = [], pos
+                for lvl in levels[:-1]:
+                    padded = lvl + [lvl[-1]] if len(lvl) % 2 else lvl
+                    branch.append(padded[idx ^ 1][::-1].hex())
+                    idx //= 2
+                txid = leaves[pos][::-1].hex()
+                accepted = []
+                for p in range(1 << len(branch)):
+                    try:
+                        if merkle_root_from_proof(txid, branch, p) == root:
+                            accepted.append(p)
+                    except ValueError:
+                        pass
+                with self.subTest(n=n, pos=pos):
+                    self.assertEqual(accepted, [pos])
+
 
 class TestVerify(unittest.TestCase):
     def test_genesis_coinbase_verifies(self):

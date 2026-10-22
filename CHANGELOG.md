@@ -6,12 +6,38 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+## [1.8.2] — 2026-10-22
+
+Fixes found by running every command and every shell completion by hand on macOS, and by an independent audit of
+`verify` and the parsers. The `--json` output keeps its keys and their meaning.
+
 ### Added
+- Static fish shell completion (`completions/btc-toolkit.fish`) alongside bash and zsh, contributed by @montionugera
+  (#69).
+- `btc_toolkit.api.BadRequestError`, a `MempoolAPIError` for HTTP 400.
+- A test that presses Tab in a real zsh, bash and fish, for commands, options after the command and after an operand,
+  and `-n` network values.
 - `.github/FUNDING.yml`: GitHub's Sponsor button links to the README's on-chain Support section.
-- Static fish shell completion (`completions/btc-toolkit.fish`) alongside bash and zsh.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), issue forms for bug reports and feature requests (security
   reports go to private reporting), and a pull request template.
 - Python 3.15 in the CI test matrix and the package classifiers.
+
+### Fixed
+- zsh completion (#58): Tab completed the command names but none of their options or values (`tx --in`, `block 0 -n s`
+  completed nothing). It now completes every option and the `-n` networks, after the subcommand and after the
+  txid, address or block.
+- `verify`: the Merkle proof of a block's last transaction also hashed to the root at positions past it, where Bitcoin
+  pairs a duplicated node. Those positions are now refused, so the reported `position` is always a real
+  transaction's. The verdict itself was not affected: the transaction was in the block.
+- `utxo` on an address with tens of thousands of UTXOs, which the API refuses with HTTP 400, now says so and points
+  to `balance` instead of a bare "API error 400: Bad Request".
+- `block` showed a difficulty below 1 (signet, regtest) as `0`; it now shows it with four significant digits, as
+  `verify` does.
+- With `--api-url` or `$BTC_TOOLKIT_API_URL`, the line under the banner says "custom API" instead of
+  "Mempool.space API".
+- Text output also escapes the Unicode line and paragraph separators (U+2028, U+2029) in on-chain text and echoed
+  input, like other control characters.
+- The sdist ships `completions/`: in 1.8.1, the test suite failed 4 completion tests when run from the sdist.
 
 ### Changed
 - The fuzzer now also covers `verify` and the address overview: `verify_tx` is fed arbitrary API answers and,
@@ -22,12 +48,16 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
   from 1.5.0 on, and how to verify one.
 - Docs: the 50 T threshold behind `"work": "strong"` is btc-toolkit's own, not a consensus rule, and a script
   that must reject forged proofs should check `work`, not only `verified`.
-- README: btc-toolkit's listing on bitcoin.org's Development page; fish completion (#62) is no longer listed as next.
+- README: a shorter entry page, with a new "What it verifies, and what it doesn't" table, command by command. The
+  full command reference moved to `docs/commands.md`, and the project layout and testing notes to `CONTRIBUTING.md`.
+  It also lists btc-toolkit on bitcoin.org's Development page, and no longer lists fish (#62) or zsh (#58)
+  completion as next.
 
 ### Security
 - Release pipeline: signing now uses sigstore 4.5.1 with certifi 2026.10.19, and publishing uses
   pypa/gh-action-pypi-publish v1.14.3. Both drop the emSign ECC Root CA - G3 after the eMudhra CA incident
-  of October 2026. The package is unchanged: it uses Python's default TLS context and the system's certificates.
+  of October 2026. The package itself never bundled certificates: it uses Python's default TLS context, and so
+  the system's certificates.
 
 ## [1.8.1] — 2026-10-15
 
@@ -311,7 +341,8 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
-[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.1...v1.7.2

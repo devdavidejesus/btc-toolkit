@@ -3,7 +3,7 @@
 # Install: copy into a directory on your $fpath as _btc-toolkit, e.g.
 #   cp btc-toolkit.zsh ~/.zsh/completions/_btc-toolkit
 _btc_toolkit() {
-    local -a commands common
+    local -a commands common operand
     commands=(
         'opreturn:Decode OP_RETURN messages from a transaction'
         'tx:Full transaction details'
@@ -29,28 +29,33 @@ _btc_toolkit() {
         '--timeout[Per-request timeout in seconds]:seconds:'
         '(-h --help)'{-h,--help}'[Show help]'
     )
-    case $words[2] in
+    # The txid, address, block or raw transaction: free text, but declared so options after it still complete.
+    operand=('1::argument:()')
+    # Hand _arguments the words from the subcommand on, so it sees "tx --inputs", not "btc-toolkit tx --inputs".
+    shift words
+    (( CURRENT-- ))
+    case $words[1] in
         fees)
             _arguments $common ;;
         opreturn)
-            _arguments $common \
+            _arguments $common $operand \
                 '--file[Read items from file, one per line]:file:_files' \
                 '--raw[Show raw hex only, one per line]' ;;
         utxo)
-            _arguments $common \
+            _arguments $common $operand \
                 '--file[Read items from file, one per line]:file:_files' \
                 '--confirmed-only[Exclude unconfirmed (mempool) UTXOs]' \
                 '--limit[Max UTXOs to display (default 15)]:count:' ;;
         tx)
-            _arguments $common \
+            _arguments $common $operand \
                 '--file[Read items from file, one per line]:file:_files' \
                 '--inputs[List each input]' \
                 '--outputs[List each output and whether it is spent]' ;;
         decode)
-            _arguments $common \
+            _arguments $common $operand \
                 '--txid[Fetch the raw transaction of this txid]:txid:' ;;
         *)
-            _arguments $common \
+            _arguments $common $operand \
                 '--file[Read items from file, one per line]:file:_files' ;;
     esac
 }

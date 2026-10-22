@@ -90,7 +90,7 @@ def _terminal_safe(text: str) -> str:
     """
     return "".join(
         ch.encode("unicode_escape").decode("ascii")
-        if unicodedata.category(ch) in ("Cc", "Cs") or ch in _BIDI_CONTROLS else ch
+        if unicodedata.category(ch) in ("Cc", "Cs", "Zl", "Zp") or ch in _BIDI_CONTROLS else ch
         for ch in text
     )
 
@@ -106,7 +106,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
         return _opreturn_raw(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · opreturn · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · opreturn · {_source()}\n"))
 
     txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
@@ -202,7 +202,7 @@ def _cmd_balance(args: argparse.Namespace) -> int:
         return _balance_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · balance · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · balance · {_source()}\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
@@ -269,7 +269,7 @@ def _cmd_fees(args: argparse.Namespace) -> int:
         return _fees_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · fees · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · fees · {_source()}\n"))
 
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -318,7 +318,7 @@ def _cmd_block(args: argparse.Namespace) -> int:
         return _block_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · block · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · block · {_source()}\n"))
 
     print(f"  {c.bold('Block:')}   {_terminal_safe(args.ref)}")
     print(f"  {c.bold('Network:')} {args.network}")
@@ -348,7 +348,7 @@ def _cmd_block(args: argparse.Namespace) -> int:
     print(f"  ├─ Txs:         {blk.tx_count:,}")
     print(f"  ├─ Size:        {blk.size_mb:.2f} MB ({blk.size:,} bytes)")
     print(f"  ├─ Weight:      {blk.weight:,} WU")
-    print(f"  ├─ Difficulty:  {blk.difficulty:,.0f}")
+    print(f"  ├─ Difficulty:  {format_difficulty(blk.difficulty)}")
     print(f"  ├─ Nonce:       {blk.nonce}")
     print(f"  └─ Previous:    {prev_short}")
     print()
@@ -380,7 +380,7 @@ def _cmd_utxo(args: argparse.Namespace) -> int:
         return _utxo_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · utxo · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · utxo · {_source()}\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
@@ -457,7 +457,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
         return _tx_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · tx · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · tx · {_source()}\n"))
 
     txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
     print(f"  {c.bold('TXID:')}    {txid_short}")
@@ -581,7 +581,7 @@ def _cmd_address(args: argparse.Namespace) -> int:
         return _address_json(args)
 
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · address · Mempool.space API\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · address · {_source()}\n"))
 
     addr_short = args.address if len(args.address) <= 24 else (
         f"{args.address[:12]}...{args.address[-8:]}"
@@ -639,9 +639,14 @@ def _address_json(args: argparse.Namespace) -> int:
 # validate subcommand (offline)
 # ──────────────────────────────────────────────────────────────────────
 
-def _header(command: str, label: str, value: str, network: str, source: str = "Mempool.space API") -> None:
+def _source() -> str:
+    """Where the data comes from, for the line under the banner."""
+    return "custom API" if custom_api_in_use() else "Mempool.space API"
+
+
+def _header(command: str, label: str, value: str, network: str, source: str | None = None) -> None:
     print(c.orange(BANNER))
-    print(c.dim(f"  btc-toolkit v{__version__} · {command} · {source}\n"))
+    print(c.dim(f"  btc-toolkit v{__version__} · {command} · {source or _source()}\n"))
     print(f"  {c.bold(label)} {_terminal_safe(value)}")
     print(f"  {c.bold('Network:')} {network}")
     print(f"  {'─' * 48}\n")
@@ -748,7 +753,7 @@ def _cmd_decode(args: argparse.Namespace) -> int:
                 text = get_text(f"/tx/{txid}/hex", args.network)
             except NotFoundError as e:
                 raise TransactionNotFoundError(f"Transaction not found: {txid}") from e
-            source = "Mempool.space API"
+            source = _source()
         elif args.rawtx is None or args.rawtx == "-":
             if sys.stdin is None or (args.rawtx is None and sys.stdin.isatty()):
                 raise ValueError("missing raw transaction: pass the hex, pipe it via stdin, or use --txid")
@@ -812,7 +817,7 @@ def _decode_error(args: argparse.Namespace, message: str, code: int) -> int:
                          indent=_indent()))
     else:
         _header("decode", "Input:  ", _short(args.decode_txid or args.rawtx or "(stdin)"), args.network,
-                source="Mempool.space API" if args.decode_txid is not None else "offline")
+                source=_source() if args.decode_txid is not None else "offline")
         print(f"  {c.red('✗')} {_terminal_safe(message)}\n")
     return code
 

@@ -199,6 +199,12 @@ class TestOnChainTextInTheTerminal(unittest.TestCase):
         self.assertNotIn("‮", out)
         self.assertIn("pay \\u202eevil", out)
 
+    def test_line_and_paragraph_separators_are_shown_escaped(self):
+        out = self._opreturn_text("one\u2028two\u2029three".encode())
+        self.assertNotIn("\u2028", out)
+        self.assertNotIn("\u2029", out)
+        self.assertIn("one\\u2028two\\u2029three", out)
+
     def test_ordinary_unicode_is_kept(self):
         out = self._opreturn_text("café ₿ 日本".encode())
         self.assertIn("café ₿ 日本", out)

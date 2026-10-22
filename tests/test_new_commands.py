@@ -303,5 +303,50 @@ class TestAuditFixes(unittest.TestCase):
         self.assertEqual(json.loads(out)["error"], "down")
 
 
+class TestLiveRunFindings(unittest.TestCase):
+    """Found by running every command against mainnet, testnet and signet on a Mac (1.8.1)."""
+
+    def test_utxo_explains_the_400_of_a_huge_address(self):
+        from btc_toolkit.api import BadRequestError
+        with patch("btc_toolkit.utxo.get_json", side_effect=BadRequestError("API error 400: Bad Request")):
+            code, out, _ = _run(["utxo", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"])
+            self.assertEqual(code, 1)
+            self.assertIn("tens of thousands", out)
+            self.assertIn("`balance` still works", out)
+            code, out, _ = _run(["utxo", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "--json"])
+            self.assertEqual(code, 1)
+            self.assertIn("tens of thousands", json.loads(out)["error"])
+
+    def test_a_400_is_still_a_plain_api_error_elsewhere(self):
+        from btc_toolkit.api import BadRequestError, MempoolAPIError
+        self.assertTrue(issubclass(BadRequestError, MempoolAPIError))
+
+    def test_block_shows_a_difficulty_below_one(self):
+        block = {"id": "0" * 64, "height": 0, "timestamp": 1598918400, "tx_count": 1, "size": 285, "weight": 1140,
+                 "difficulty": 0.001126515290698186, "nonce": 52613770, "previousblockhash": None}
+        with patch("btc_toolkit.block.get_json", return_value=block), \
+                patch("btc_toolkit.block.get_text", return_value="0" * 64):
+            code, out, _ = _run(["block", "0", "-n", "signet"])
+        self.assertEqual(code, 0)
+        self.assertIn("Difficulty:  0.001127", out)
+
+    def test_the_header_names_a_custom_api(self):
+        from btc_toolkit.api import set_api_base
+        try:
+            with patch("btc_toolkit.fees.get_json", side_effect=[{"fastestFee": 1, "halfHourFee": 1, "hourFee": 1,
+                                                                  "economyFee": 1, "minimumFee": 1},
+                                                                 {"count": 1, "vsize": 1, "total_fee": 1}]):
+                code, out, _ = _run(["fees", "--api-url", "http://node.local/api"])
+            self.assertEqual(code, 0)
+            self.assertIn("fees · custom API", out)
+            self.assertNotIn("Mempool.space API", out)
+        finally:
+            set_api_base(None)
+        with patch("btc_toolkit.fees.get_json", side_effect=[{"fastestFee": 1, "halfHourFee": 1, "hourFee": 1,
+                                                              "economyFee": 1, "minimumFee": 1},
+                                                             {"count": 1, "vsize": 1, "total_fee": 1}]):
+            self.assertIn("fees · Mempool.space API", _run(["fees"])[1])
+
+
 if __name__ == "__main__":
     unittest.main()
