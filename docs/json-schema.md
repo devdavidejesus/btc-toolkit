@@ -381,7 +381,10 @@ carry (`tx` has it).
 
 `work` is `"strong"` for a mainnet header at difficulty 50 T or more, and `"weak"`
 otherwise (an older block, testnet, signet, or an unknown chain): the checks pass,
-but that little work is cheap to fake. `difficulty` and `bits` are the header's own
+but that little work is cheap to fake. The 50 T threshold is btc-toolkit's own, not a
+consensus rule. `verified` is `true` whenever every check passes, whatever the work, so
+a script that must reject forged proofs should also require `"work": "strong"`.
+`difficulty` and `bits` are the header's own
 (`bits` is a number, as in `block`); `work_log2` is the log2 of the expected number
 of hashes to produce a header that hard. `block_height` is the API's: a header does
 not contain its height. `position` is the proof's; when the transaction is the last

@@ -64,7 +64,8 @@ only lockfiles in the repository pin CI tools by hash). That means:
   of work, but not the block height (the API reports it) nor that the header
   is in the chain everyone follows. Its verdict depends only on the work
   proven: "strong" needs a mainnet header at difficulty 50 T or more (about
-  2^77.5 hashes to forge); anything less is reported as "weak" — consistent,
+  2^77.5 hashes to forge; a threshold btc-toolkit sets, not a consensus
+  rule); anything less is reported as "weak" — consistent,
   but cheap to fake. Signet block signatures are not checked. Only a full node
   validates consensus.
 - **A compromised operating system, Python installation, or PyPI account.**
