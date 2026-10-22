@@ -6,6 +6,10 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Security
+- CI: `.github/requirements/sign.in` states the certifi floor (2026.10.19, GHSA-6q48-6c7w-9gw2) explicitly, so
+  dependency scanners see what `sign.txt` already pins. The pinned versions are unchanged.
+
 ## [1.8.2] — 2026-10-22
 
 Fixes found by running every command and every shell completion by hand on macOS, and by an independent audit of
