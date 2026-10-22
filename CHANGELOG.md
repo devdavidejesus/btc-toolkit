@@ -18,6 +18,11 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 - Docs: the exit-code note says which commands return `1` for an unconfirmed transaction (only `verify`), and
   `SECURITY.md` says that the repository's only lockfiles pin CI tools.
 
+### Security
+- Release pipeline: signing now uses sigstore 4.5.1 with certifi 2026.10.19, and publishing uses
+  pypa/gh-action-pypi-publish v1.14.3. Both drop the emSign ECC Root CA - G3 after the eMudhra CA incident
+  of October 2026. The package is unchanged: it uses Python's default TLS context and the system's certificates.
+
 ## [1.8.1] — 2026-10-15
 
 A new look, and a PyPI page that describes 1.8.0. The commands and the `--json` output are the same as in 1.8.0.
