@@ -140,7 +140,7 @@ btc-toolkit address <address> --json
 btc-toolkit balance 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 ```
 
-Shows the confirmed balance in BTC and satoshis and, when the address has a non-zero unconfirmed amount, that amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), and Taproot.
+Shows the confirmed balance in BTC and satoshis and, when the address has a non-zero unconfirmed amount, that amount and the total, plus confirmed and mempool transaction counts. Supports all address types: Legacy (P2PKH), P2SH, SegWit (Bech32), Taproot, P2A and future witness versions.
 
 ```bash
 # JSON output for scripting
@@ -257,8 +257,8 @@ Instead of taking the API's "confirmed" on faith, `verify` recomputes from raw b
 
 Any mismatch is `verification failed` (exit code `1`). The verdict depends only on the work proven — never on the height or date the API claims, since a forger picks those:
 
-- **`✓ VERIFIED`** (`"work": "strong"`): a mainnet header at difficulty 50 T or more. Forging one takes about 2^77.5 hashes — over a third of a block's work at October 2026's difficulty (about 133 T).
-- **`⚠ CONSISTENT, WEAK WORK`** (`"work": "weak"`): everything checks out, but the header carries less work — an older block, or testnet, signet (block signatures are not checked) or an unknown chain. That little work is cheap to fake: treat it as consistency, not proof.
+- **`✓ VERIFIED`** (`"work": "strong"`): a mainnet header at difficulty 50 T or more (btc-toolkit's own threshold, not a consensus rule). Forging one takes about 2^77.5 hashes — over a third of a block's work at October 2026's difficulty (about 133 T).
+- **`⚠ CONSISTENT, WEAK WORK`** (`"work": "weak"`): everything checks out, but the header carries less work — an older block, or testnet, signet (block signatures are not checked) or an unknown chain. That little work is cheap to fake: treat it as consistency, not proof. With `--json`, `verified` is `true` in both cases, so a script that must reject forged proofs should also require `"work": "strong"`.
 
 With your own instance, add `-n mainnet` so `verify` knows which chain it is checking: `btc-toolkit verify <txid> --api-url http://umbrel.local:3006/api -n mainnet`.
 
@@ -325,6 +325,7 @@ btc-toolkit/
 │   └── releases.md       # How releases are built and verified
 ├── SECURITY.md           # Threat model + vulnerability reporting
 ├── CONTRIBUTING.md       # How changes are made and what they must include
+├── CODE_OF_CONDUCT.md    # Contributor Covenant 3.0
 ├── CHANGELOG.md          # Every release, newest first
 ├── pyproject.toml
 ├── LICENSE               # MIT
@@ -338,7 +339,7 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 ## Reliability
 
 - **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
-- **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet and signet.
+- **Sovereignty** — `--api-url` points every command at your own Mempool instance; `--network` covers mainnet, testnet (testnet3) and signet.
 - **Bounded waits** — `--timeout` (default 15s) applies to each network operation of each attempt, so with retries a command can wait longer than the timeout.
 - **Exit codes** — `0` success, `1` network/API error (including a `verify` whose checks fail or whose transaction is not confirmed yet), `2` invalid input. Script accordingly.
 - **Verifiable releases** — since v1.5.0, published from GitHub Actions via PyPI Trusted Publishing, with PEP 740 attestations tying each file to this repo; since v1.6.1, every GitHub Release also carries Sigstore-signed files ([how to verify](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md)).
@@ -449,7 +450,7 @@ check consensus rules. For sovereign, trustless verification, run
 - [x] **Phase 4** — Block Info Explorer
 - [x] **Phase 5** — UTXO Set Inspector
 
-The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), shell completion ([#58](https://github.com/devdavidejesus/btc-toolkit/issues/58), [#62](https://github.com/devdavidejesus/btc-toolkit/issues/62)), plain Esplora backends ([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63)); [`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute) marks the easy ones. Out of scope, for good: keys, signing, broadcasting and runtime dependencies. One philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
+The original roadmap shipped in v1.0.0; every release since is in the [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md). What's next lives in the [issues](https://github.com/devdavidejesus/btc-toolkit/issues) — testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), zsh completion of options ([#58](https://github.com/devdavidejesus/btc-toolkit/issues/58)), plain Esplora backends ([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63)); [`good first issue`](https://github.com/devdavidejesus/btc-toolkit/contribute) marks the easy ones. Out of scope, for good: keys, signing, broadcasting and runtime dependencies. One philosophy throughout: **zero dependencies, no Bitcoin Core, verify everything on-chain.**
 
 ## Don't Trust, Verify
 

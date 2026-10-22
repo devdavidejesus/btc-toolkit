@@ -7,6 +7,7 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 ## [Unreleased]
 
 ### Added
+- `.github/FUNDING.yml`: GitHub's Sponsor button links to the README's on-chain Support section.
 - Static fish shell completion (`completions/btc-toolkit.fish`) alongside bash and zsh.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), issue forms for bug reports and feature requests (security
   reports go to private reporting), and a pull request template.
@@ -17,6 +18,11 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
   half of the time, answers that agree with each other, so every check up to proof of work is reached.
 - Docs: the exit-code note says which commands return `1` for an unconfirmed transaction (only `verify`), and
   `SECURITY.md` says that the repository's only lockfiles pin CI tools.
+- Docs: `SECURITY.md` and `docs/releases.md` say that release tags are signed with the maintainer's SSH key
+  from 1.5.0 on, and how to verify one.
+- Docs: the 50 T threshold behind `"work": "strong"` is btc-toolkit's own, not a consensus rule, and a script
+  that must reject forged proofs should check `work`, not only `verified`.
+- README: btc-toolkit's listing on bitcoin.org's Development page; fish completion (#62) is no longer listed as next.
 
 ### Security
 - Release pipeline: signing now uses sigstore 4.5.1 with certifi 2026.10.19, and publishing uses
