@@ -9,6 +9,9 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 ### Security
 - CI: `.github/requirements/sign.in` states the certifi floor (2026.10.19, GHSA-6q48-6c7w-9gw2) explicitly, so
   dependency scanners see what `sign.txt` already pins. The pinned versions are unchanged.
+- CI: the release job builds with setuptools 84.2.1 (GHSA-xmj3-9gf7-h52w, a Windows path escape in legacy wheel
+  installation) and signs with dnspython 2.9.1 (GHSA-45c3-73f7-pv4m, CPU exhaustion when decompressing DNS names).
+  Neither is used by btc-toolkit itself, which has no dependencies; the built wheel's contents are unchanged.
 
 ## [1.8.2] — 2026-10-22
 
