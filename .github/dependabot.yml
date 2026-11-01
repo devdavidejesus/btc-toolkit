@@ -8,3 +8,10 @@ updates:
       interval: monthly
     commit-message:
       prefix: ci
+    # One pull request per run, so every bump is tested together and steps
+    # from the same action (codeql-action/init, analyze, upload-sarif) move
+    # in lockstep.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
