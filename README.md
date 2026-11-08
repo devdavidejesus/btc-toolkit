@@ -165,8 +165,9 @@ requirement.
 - The wallet holding 562 BTC from the Coldcard hack (July 2026) became a message board: 49 OP_RETURN messages, read
   with `opreturn --file`: [*49 Messages to a Thief*](https://dev.to/devdavidejesus/49-messages-to-a-thief-what-people-wrote-to-the-coldcard-hackers-bitcoin-wallet-l1n).
 
-btc-toolkit is listed on bitcoin.org's [Development page](https://bitcoin.org/en/development#more) and among the
-[developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources.
+btc-toolkit is listed on bitcoin.org's [Development page](https://bitcoin.org/en/development#more), among the
+[developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources, and
+in [awesome-osint](https://github.com/jivoi/awesome-osint), the curated list of open-source intelligence tools.
 
 ## Roadmap
 
