@@ -6,6 +6,10 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Added
+- `docs/cookbook.md`: eight `--json` recipes with `jq`, each with a real mainnet sample output, linked from
+  the README (#63).
+
 ### Security
 - CI: `.github/requirements/sign.in` states the certifi floor (2026.10.19, GHSA-6q48-6c7w-9gw2) explicitly, so
   dependency scanners see what `sign.txt` already pins. The pinned versions are unchanged.
