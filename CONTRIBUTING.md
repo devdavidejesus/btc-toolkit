@@ -100,6 +100,8 @@ Zero external dependencies — Python standard library only (`urllib`, `json`, `
 ## Running the checks locally
 
 ```bash
+git clone https://github.com/devdavidejesus/btc-toolkit.git && cd btc-toolkit
+pip install -e .                                 # the btc-toolkit command, from this checkout
 python -m unittest discover -s tests -t . -v   # tests — nothing to install
 pip install ruff mypy                            # only for lint and types
 ruff check btc_toolkit/ tests/ fuzz/ .github/scripts/
