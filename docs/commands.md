@@ -9,7 +9,30 @@ Options go **after** the command: `btc-toolkit fees --network signet`, not
 `btc-toolkit <command> --help` lists every option of a command.
 
 - [tx](#tx--inspect-any-transaction) · [address](#address--aggregated-overview) · [balance](#balance--check-any-address) · [fees](#fees--current-rates-and-mempool-backlog) · [block](#block--inspect-any-block) · [utxo](#utxo--unspent-outputs-of-any-address) · [opreturn](#opreturn--decode-embedded-messages) · [verify](#verify--check-a-transaction-is-in-a-block) · [decode](#decode--a-raw-transaction-offline) · [validate](#validate--check-an-address-offline) · [inscription](#inscription--ordinals-envelopes)
-- [Scripting and configuration](#scripting-and-configuration) · [Reliability](#reliability) · [How balance is computed](#how-balance-is-computed)
+- [What each command verifies](#what-each-command-verifies) · [Scripting and configuration](#scripting-and-configuration) · [Use your own Mempool instance](#use-your-own-mempool-instance) · [Reliability](#reliability) · [How balance is computed](#how-balance-is-computed) · [Checking the data yourself](#checking-the-data-yourself)
+
+## What each command verifies
+
+btc-toolkit is an explorer client for the terminal: a fast, scriptable way to inspect the Bitcoin blockchain
+without running infrastructure, for scripting, quick lookups, and learning how Bitcoin data is structured. It reads
+a Mempool API — mempool.space by default, or your own instance. Most commands report what that API says; some
+check it, or need no API at all:
+
+| Command | Computed by btc-toolkit | Taken from the API |
+|---|---|---|
+| `validate` | Checksum, network and type — offline | Nothing |
+| `decode` | Everything, from the raw bytes — offline | With `--txid`, the raw transaction, checked against the txid (which does not cover the witness) |
+| `verify` | The txid, the Merkle root, the header hash and its proof of work | The raw transaction, the Merkle proof and the header (each checked), and the block height |
+| `tx` | The addresses in `--inputs` / `--outputs`, from each output script, on a named network | Status, fee, values and what spent each output |
+| `address` | The address type, from the checksum-verified address | Balances, lifetime totals and counts |
+| `opreturn`, `inscription` | The decoding of the scripts and envelopes | The transaction, unchecked (`decode --txid` checks one); inscriptions could not be checked even then, as a txid does not commit to the witness |
+| `balance`, `utxo` | The address check, before any request | Balances and UTXOs |
+| `block`, `fees` | Nothing | Everything shown |
+
+What no command does: validate blocks, follow the most-work chain, or check consensus rules. For sovereign,
+trustless verification, run [Bitcoin Core](https://bitcoincore.org) and query it directly. The full threat model is
+in [`SECURITY.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/SECURITY.md); how releases are built and how to verify one yourself, in
+[`docs/releases.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/releases.md).
 
 ## tx — inspect any transaction
 
@@ -224,6 +247,21 @@ Flags always win over environment variables. Exit codes are a contract
 mode; in batch mode the worst code wins. Full output schemas and the
 stability policy: [`json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
 
+## Use your own Mempool instance
+
+Every command accepts `--api-url` pointing to a self-hosted [Mempool](https://github.com/mempool/mempool) instance,
+which runs on top of your own Bitcoin node (Umbrel, Start9, RaspiBlitz and similar node stacks offer it as an app):
+
+```bash
+btc-toolkit balance <address> --api-url http://umbrel.local:3006/api -n mainnet
+```
+
+`-n` tells btc-toolkit which chain your instance serves. Without it the chain is `custom` (unknown): addresses of
+any Bitcoin network (mainnet, testnet/signet, regtest) are accepted, `tx` shows the API's addresses, and `verify`
+reports the work as weak. Results never link to mempool.space when you use your own instance. With your own
+instance, no third party sees your queries — the public mempool.space API is the zero-setup default, not a
+requirement.
+
 ## Reliability
 
 - **Retry with backoff** — transient failures (HTTP 429, 500, 502, 503, 504 and network errors) get up to 3 attempts, with exponential backoff between them (0.5s, then 1s). Any other HTTP error (e.g. 400, 404) fails immediately.
@@ -243,3 +281,14 @@ total       = confirmed + unconfirmed
 ```
 
 This is the same model used by Esplora/Electrs. Don't trust this page — verify against `https://mempool.space/api/address/<address>` yourself.
+
+## Checking the data yourself
+
+Every txid, address, hex value and technical claim in the README and in this reference can be checked independently:
+- Transaction data: `https://mempool.space/api/tx/<txid>`
+- Address data: `https://mempool.space/api/address/<address>`
+- Fee data: `https://mempool.space/api/v1/fees/recommended`
+- Block data: `https://mempool.space/api/block/<hash>`
+- UTXO data: `https://mempool.space/api/address/<address>/utxo`
+- OP_RETURN spec: [learnmeabitcoin.com/technical/script/return](https://learnmeabitcoin.com/technical/script/return/)
+- Esplora API model: [github.com/Blockstream/esplora/blob/master/API.md](https://github.com/Blockstream/esplora/blob/master/API.md)
