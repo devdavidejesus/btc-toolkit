@@ -13,6 +13,24 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
   installation) and signs with dnspython 2.9.1 (GHSA-45c3-73f7-pv4m, CPU exhaustion when decompressing DNS names).
   Neither is used by btc-toolkit itself, which has no dependencies; the built wheel's contents are unchanged.
 
+### Fixed
+- A reader that stops early (`btc-toolkit tx - --json | head -1`) no longer ends in a `BrokenPipeError` traceback:
+  the command stops quietly, with exit code `1`.
+- Text output no longer crashes with `UnicodeEncodeError` when stdout is not UTF-8, as on Windows with the output
+  redirected to a file or a pipe (before Python 3.15): characters the encoding lacks are printed as `?`. `--json`
+  output is ASCII and was not affected.
+- `opreturn` and `tx` showed a short invalid txid twice in the header (`TXID: abc...abc`); it is now shown whole, as
+  `verify`, `inscription` and `decode` do.
+- Docs: `docs/json-schema.md` still said that, for a block's last transaction, the next `position` verifies too.
+  Since 1.8.2 that position is refused. The README's Scripting section said every command reads many items from
+  stdin or `--file`; `fees` and `decode` do not.
+- Tests: in four test files the `if __name__ == "__main__"` block sat in the middle, so running one of them directly
+  (`python -m tests.test_cli`) skipped the classes after it, 48 tests in all. `python -m unittest discover` and CI
+  were not affected.
+
+### Removed
+- `assets/.gitkeep`, a placeholder from when the directory was empty.
+
 ## [1.8.2] — 2026-10-22
 
 Fixes found by running every command and every shell completion by hand on macOS, and by an independent audit of

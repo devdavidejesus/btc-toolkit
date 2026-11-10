@@ -189,10 +189,6 @@ class TestSlowServer(unittest.TestCase):
                     self.doCleanups()  # stop this stage's server before the next one starts
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestResponseShape(unittest.TestCase):
     """An unexpected JSON shape (upstream API drift) must become a clean MempoolAPIError."""
 
@@ -261,3 +257,7 @@ class TestLowLevelNetworkFailures(unittest.TestCase):
         mock_open.return_value = _ok_response(b"\xff\xfe\x00")
         with self.assertRaises(MempoolAPIError):
             get_text("/blocks/tip/height")
+
+
+if __name__ == "__main__":
+    unittest.main()
