@@ -9,8 +9,9 @@ JSON Lines, one object per input, in input order. A failed item prints an error 
 of stopping `jq`.
 
 Each sample output below is real: it was run against mainnet on 2026-11-09 with btc-toolkit 1.8.2 and jq 1.7.
-Every input is an old, confirmed transaction or an address with no activity since 2011 or 2012, so the outputs
-stay the same. The input files hold these lines:
+Every input is an old, confirmed transaction or an address with no activity since 2011 or 2012. Transaction
+outputs stay the same. Address outputs should rarely change, but anyone can still send coins to an old address.
+The input files hold these lines:
 
 - `txids.txt`: `a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d` (the 10,000 BTC pizza
   transaction) and `f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16` (block 170, the first

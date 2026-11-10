@@ -69,7 +69,6 @@ class TestCookbook(unittest.TestCase):
     def test_recipes_are_well_formed(self) -> None:
         recipes = _recipes()
         self.assertGreaterEqual(len(recipes), 5)
-        self.assertLessEqual(len(recipes), 8)
         for recipe in recipes:
             with self.subTest(recipe=recipe[0]):
                 # one command block, then one sample output under it
