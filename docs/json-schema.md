@@ -387,9 +387,9 @@ a script that must reject forged proofs should also require `"work": "strong"`.
 `difficulty` and `bits` are the header's own
 (`bits` is a number, as in `block`); `work_log2` is the log2 of the expected number
 of hashes to produce a header that hard. `block_height` is the API's: a header does
-not contain its height. `position` is the proof's; when the transaction is the last
-of an odd-sized level, the next position verifies too (the tree duplicates it), so
-only inclusion is proven, not the exact index.
+not contain its height. `position` is the proof's: the transaction's index in the
+block. A position past the block's last transaction, where the tree pairs a
+duplicated node, is refused (since 1.8.2).
 
 ### `inscription <txid> --json`
 

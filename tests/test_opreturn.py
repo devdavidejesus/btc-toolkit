@@ -118,10 +118,6 @@ class TestOPReturnData(unittest.TestCase):
         self.assertNotIn("raw_bytes", d)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestMalformedApiScripts(unittest.TestCase):
     """Regression tests for an issue found by fuzzing (fuzz/fuzz_parsers.py):
     a non-hex scriptpubkey from the API used to surface as ValueError, which the
@@ -237,3 +233,7 @@ class TestDecodeEdges(unittest.TestCase):
         self.assertEqual(_extract_pushdata("5d" + "0400c0a233"), "00c0a233")               # OP_13 (Runestone)
         self.assertEqual(_extract_pushdata("4e050000"), "4e050000")                        # truncated length: raw
         self.assertEqual(_extract_pushdata("51"), None)                                    # OP_1 only: no data
+
+
+if __name__ == "__main__":
+    unittest.main()
