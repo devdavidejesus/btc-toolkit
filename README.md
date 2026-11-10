@@ -105,7 +105,8 @@ Every command is also a typed Python function: [`docs/python-api.md`](https://gi
 
 Listed on bitcoin.org's [Development page](https://bitcoin.org/en/development#more), among the
 [developer tools](https://www.lopp.net/bitcoin-information/developer-tools.html) in Jameson Lopp's Bitcoin resources,
-and in [awesome-osint](https://github.com/jivoi/awesome-osint).
+and in [awesome-osint](https://github.com/jivoi/awesome-osint) and
+[awesome-blockchain](https://github.com/yjjnls/awesome-blockchain/blob/master/BitCoin/awesome.md#utilities).
 
 ## Roadmap
 
