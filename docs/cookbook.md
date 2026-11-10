@@ -9,17 +9,16 @@ JSON Lines, one object per input, in input order. A failed item prints an error 
 of stopping `jq`.
 
 Each sample output below is real: it was run against mainnet on 2026-11-09 with btc-toolkit 1.8.2 and jq 1.7.
-The input files hold these lines:
+Every input is an old, confirmed transaction or an address with no activity since 2011 or 2012, so the outputs
+stay the same. The input files hold these lines:
 
 - `txids.txt`: `a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d` (the 10,000 BTC pizza
   transaction) and `f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16` (block 170, the first
   transfer between two people)
 - `optxids.txt`: `8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684` (an OP_RETURN text),
-  the pizza transaction (no OP_RETURN), and a txid of 64 zeros (not found)
-- `addresses.txt`: `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa` (the genesis address) and
-  `17SkEw2md5avVNyYgj6RiXuQKNwkXaxFyQ` (the pizza buyer's address)
-
-Balances, UTXOs and fees change with the chain, so your numbers for those recipes will differ.
+  the pizza transaction (no OP_RETURN), a txid of 64 zeros (not found), and `not-a-txid` (invalid input)
+- `addresses.txt`: `17jGZpvEUGbSDkvt8AqniGMbbek12VZtZc` (last used in October 2011) and
+  `1L7ABFJBQN3qD9nLJpHcFgLfGM23GRHkPf` (last used in May 2012)
 
 ## Fee rate of many transactions
 
@@ -54,11 +53,11 @@ affects the text output, while `--confirmed-only` still applies). `[]?` keeps an
 `jq` with `Cannot iterate over null`.
 
 ```bash
-btc-toolkit utxo 17SkEw2md5avVNyYgj6RiXuQKNwkXaxFyQ --json | jq '[.utxos[]? | select(.value_sats > 10000) | .value_sats] | add'
+btc-toolkit utxo 17jGZpvEUGbSDkvt8AqniGMbbek12VZtZc --json | jq '[.utxos[]? | select(.value_sats > 10000) | .value_sats] | add'
 ```
 
 ```text
-2224616
+54313592
 ```
 
 ## Every OP_RETURN text in a list of transactions
@@ -79,12 +78,12 @@ charley loves heidi
 What does each address hold, in BTC? The `btc` field is a fixed-point string, so nothing is lost to floats.
 
 ```bash
-btc-toolkit balance --file addresses.txt --json | jq -r 'select(.error | not) | [.address, .confirmed.btc] | @tsv'
+btc-toolkit balance --file addresses.txt --json | jq -r 'select(has("error") | not) | [.address, .confirmed.btc] | @tsv'
 ```
 
 ```text
-1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa	57.70904748
-17SkEw2md5avVNyYgj6RiXuQKNwkXaxFyQ	0.02306968
+17jGZpvEUGbSDkvt8AqniGMbbek12VZtZc	0.54313592
+1L7ABFJBQN3qD9nLJpHcFgLfGM23GRHkPf	3.34484940
 ```
 
 ## One line about a block
@@ -99,28 +98,32 @@ btc-toolkit block 840000 --json | jq -r '"\(.height) \(.timestamp_utc) \(.tx_cou
 840000 2024-04-20 00:09:27 UTC 3050 txs
 ```
 
-## Fee rate to confirm within half an hour
+## Where a transaction's outputs went
 
-What fee rate should a transaction sent now use?
+Which addresses did a transaction pay, and how much? `--outputs` adds the `outputs` array to `tx --json`.
 
 ```bash
-btc-toolkit fees --json | jq '.fees_sat_vb.half_hour'
+btc-toolkit tx a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d --outputs --json | jq -r '.outputs[] | [.index, .value_sats, .address] | @tsv'
 ```
 
 ```text
-3
+0	1000000000000	17SkEw2md5avVNyYgj6RiXuQKNwkXaxFyQ
 ```
 
 ## Which items in a batch failed
 
-Which lines of the input file did not work, and why? The exit code of a batch is the worst one
-([exit codes](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md#exit-codes)); this
-names the items.
+Which lines of the input file did not work, and why? Errors are JSON too (`{"error": ..., "txid": ...}`), so
+`select(has("error"))` keeps only them. The
+[exit code](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md#exit-codes) says what
+kind: `1` for a network or API failure (like a txid that is not found), `2` for invalid input caught locally
+(like `not-a-txid`). In a batch the worst code wins, so `btc-toolkit opreturn --file optxids.txt --json` exits `2`
+here.
 
 ```bash
-btc-toolkit opreturn --file optxids.txt --json | jq -r 'select(.error) | "\(.txid): \(.error)"'
+btc-toolkit opreturn --file optxids.txt --json | jq -r 'select(has("error")) | "\(.txid): \(.error)"'
 ```
 
 ```text
 0000000000000000000000000000000000000000000000000000000000000000: Transaction not found: 0000000000000000000000000000000000000000000000000000000000000000
+not-a-txid: Invalid txid format: not-a-txid
 ```

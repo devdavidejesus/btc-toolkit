@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 COOKBOOK = ROOT / "docs" / "cookbook.md"
 SCHEMA = ROOT / "docs" / "json-schema.md"
 README = ROOT / "README.md"
+COMMANDS = ROOT / "docs" / "commands.md"
 
 
 def _recipes() -> list[tuple[str, str, str]]:
@@ -61,7 +62,9 @@ def _split(command: str) -> tuple[list[str], str]:
 class TestCookbook(unittest.TestCase):
     def test_cookbook_exists_and_is_linked(self) -> None:
         self.assertTrue(COOKBOOK.is_file(), "docs/cookbook.md is missing")
-        self.assertIn("docs/cookbook.md", README.read_text(encoding="utf-8"))
+        for page in (README, COMMANDS):
+            with self.subTest(page=page.name):
+                self.assertIn("docs/cookbook.md", page.read_text(encoding="utf-8"))
 
     def test_recipes_are_well_formed(self) -> None:
         recipes = _recipes()

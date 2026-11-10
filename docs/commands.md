@@ -10,6 +10,7 @@ Options go **after** the command: `btc-toolkit fees --network signet`, not
 
 - [tx](#tx--inspect-any-transaction) · [address](#address--aggregated-overview) · [balance](#balance--check-any-address) · [fees](#fees--current-rates-and-mempool-backlog) · [block](#block--inspect-any-block) · [utxo](#utxo--unspent-outputs-of-any-address) · [opreturn](#opreturn--decode-embedded-messages) · [verify](#verify--check-a-transaction-is-in-a-block) · [decode](#decode--a-raw-transaction-offline) · [validate](#validate--check-an-address-offline) · [inscription](#inscription--ordinals-envelopes)
 - [What each command verifies](#what-each-command-verifies) · [Scripting and configuration](#scripting-and-configuration) · [Use your own Mempool instance](#use-your-own-mempool-instance) · [Reliability](#reliability) · [How balance is computed](#how-balance-is-computed) · [Checking the data yourself](#checking-the-data-yourself)
+- [`--json` cookbook: recipes with `jq`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/cookbook.md)
 
 ## What each command verifies
 

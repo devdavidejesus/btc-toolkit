@@ -8,8 +8,8 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ### Added
 - `docs/cookbook.md`: eight `--json` recipes with `jq`, each with a real mainnet sample output, linked from
-  the README (#63). `tests/test_cookbook.py` checks that every recipe uses a real command and flags and only keys
-  documented in `docs/json-schema.md`.
+  the README and the `docs/commands.md` index (#63). `tests/test_cookbook.py` checks that every recipe uses a real
+  command and flags and only keys documented in `docs/json-schema.md`.
 
 ### Security
 - CI: `.github/requirements/sign.in` states the certifi floor (2026.10.19, GHSA-6q48-6c7w-9gw2) explicitly, so
