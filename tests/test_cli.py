@@ -179,10 +179,6 @@ class TestCliFlags(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestCliAutomation(unittest.TestCase):
     """v1.4: env vars, --timeout, stdin / --file batch, JSON Lines."""
 
@@ -397,3 +393,63 @@ class TestBatchSurvivesNetworkFailure(unittest.TestCase):
         self.assertEqual(len(lines), 2)            # but BOTH items were processed
         self.assertIn("error", lines[0])
         self.assertEqual(lines[1]["outputs"][0]["decoded_text"], "hi")
+
+
+class TestOutputStream(unittest.TestCase):
+    """The CLI must not crash because of where its output goes."""
+
+    def test_short_invalid_txid_is_shown_whole(self):
+        # `opreturn abc` and `tx abc` used to print "TXID: abc...abc".
+        for command in ("opreturn", "tx"):
+            with self.subTest(command=command):
+                code, out = _run([command, "abc"])
+                self.assertEqual(code, 2)
+                self.assertIn("TXID:    abc\n", out)
+                self.assertNotIn("abc...abc", out)
+
+    def test_stdout_that_is_not_utf8(self):
+        # Windows with the output redirected (before Python 3.15) gives a cp1252 stdout, which has no "✓" or "─".
+        raw = io.BytesIO()
+        stdout = io.TextIOWrapper(raw, encoding="cp1252")
+        with patch("sys.stdout", stdout):
+            code = cli.run(["validate", ADDR])
+        stdout.flush()
+        written = raw.getvalue()
+        stdout.detach()  # keep `raw` open when the wrapper is collected
+        self.assertEqual(code, 0)
+        self.assertIn(b"Valid mainnet address", written)
+        self.assertIn(b"? Valid", written)  # what cp1252 cannot encode is replaced, not fatal
+
+    def test_closed_pipe_stops_quietly(self):
+        class ClosedPipe(io.StringIO):
+            def write(self, text):
+                raise BrokenPipeError(32, "Broken pipe")
+
+        with patch("sys.stdout", ClosedPipe()):
+            self.assertEqual(cli.run(["validate", ADDR, "--json"]), 1)
+
+    @unittest.skipIf(os.name == "nt", "a closed pipe is not reported as BrokenPipeError on Windows")
+    def test_reader_that_stops_early(self):
+        # btc-toolkit validate --file addresses.txt --json | head -1
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
+            fh.write(f"{ADDR}\n" * 3000)  # far more output than a pipe buffers
+        try:
+            proc = subprocess.Popen([sys.executable, "-m", "btc_toolkit", "validate", "--file", fh.name, "--json"],
+                                    cwd=Path(__file__).resolve().parent.parent,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            first = proc.stdout.readline()
+            proc.stdout.close()
+            err = proc.stderr.read()
+            proc.stderr.close()
+            code = proc.wait(timeout=60)
+        finally:
+            os.unlink(fh.name)
+        self.assertEqual(json.loads(first)["address"], ADDR)
+        self.assertEqual((code, err), (1, b""))
+
+
+if __name__ == "__main__":
+    unittest.main()

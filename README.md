@@ -86,8 +86,8 @@ matches but that work is cheap to fake. With `--json`, scripts that must reject 
 
 ## Scripting
 
-Every command takes `--json`, reads many items from stdin or `--file`, and has stable exit codes
-(`0` ok · `1` network/API failure or a failed `verify` · `2` invalid input):
+Every command takes `--json` and has stable exit codes (`0` ok · `1` network/API failure or a failed `verify` ·
+`2` invalid input); the commands that take a txid, address or block read many items from stdin or `--file`:
 
 ```bash
 cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'

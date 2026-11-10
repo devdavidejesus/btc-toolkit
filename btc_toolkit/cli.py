@@ -18,15 +18,17 @@ Run `btc-toolkit <command> --help` for command-specific options.
 
 import argparse
 from collections.abc import Iterable
+import contextlib
+import io
 import json
+import os
 import sys
 import unicodedata
 
 from . import __version__
 from . import colors as c
-import os
-
-from .api import custom_api_in_use, set_api_base, set_timeout, MempoolAPIError, NotFoundError, SUPPORTED_NETWORKS
+from .api import custom_api_in_use, get_text, set_api_base, set_timeout
+from .api import MempoolAPIError, NotFoundError, SUPPORTED_NETWORKS
 from .opreturn import decode_op_return, TransactionNotFoundError, _validate_txid
 from .balance import get_balance, AddressNotFoundError
 from .fees import get_fees
@@ -38,7 +40,6 @@ from .encoding import parse_address
 from .inscription import get_inscriptions
 from .rawtx import decode_tx, parse_hex
 from .verify import STRONG_DIFFICULTY, NotConfirmedError, VerificationError, format_difficulty, verify_tx
-from .api import get_text
 
 
 BANNER = r"""
@@ -108,7 +109,7 @@ def _cmd_opreturn(args: argparse.Namespace) -> int:
     print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · opreturn · {_source()}\n"))
 
-    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
+    txid_short = _terminal_safe(_short(args.txid))
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -459,7 +460,7 @@ def _cmd_tx(args: argparse.Namespace) -> int:
     print(c.orange(BANNER))
     print(c.dim(f"  btc-toolkit v{__version__} · tx · {_source()}\n"))
 
-    txid_short = _terminal_safe(f"{args.txid[:8]}...{args.txid[-8:]}")
+    txid_short = _terminal_safe(_short(args.txid))
     print(f"  {c.bold('TXID:')}    {txid_short}")
     print(f"  {c.bold('Network:')} {args.network}")
     print(f"  {'─' * 48}\n")
@@ -1170,6 +1171,24 @@ def _add_network_and_json(parser: argparse.ArgumentParser) -> None:
 
 def run(argv: list[str] | None = None) -> int:
     """Main entry point. Returns an exit code."""
+    # A stdout that is not UTF-8 (Windows with the output redirected, before Python 3.15) cannot encode the
+    # banner or ✓: print "?" for those characters instead of crashing. JSON output is ASCII and is not affected.
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(errors="replace")
+    try:
+        code = _run(argv)
+        if sys.stdout is not None:
+            sys.stdout.flush()  # a closed pipe shows up here, not when the interpreter exits
+        return code
+    except BrokenPipeError:
+        # The reader went away (`btc-toolkit tx - --json | head -1`): stop quietly, as Python's documentation
+        # recommends. Pointing stdout at devnull keeps the interpreter's final flush from failing again.
+        with contextlib.suppress(OSError, ValueError):  # ValueError: a stdout without a file descriptor
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 1
+
+
+def _run(argv: list[str] | None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 

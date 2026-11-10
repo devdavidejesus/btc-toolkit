@@ -205,10 +205,6 @@ class TestOtherText(unittest.TestCase):
         self.assertIn("genesis", out)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestUnexpectedShape(unittest.TestCase):
     """If the API ever returns the wrong JSON shape, the user sees an error, not a traceback."""
 
@@ -223,3 +219,7 @@ class TestUnexpectedShape(unittest.TestCase):
         code, out = _run(["utxo", ADDR])
         self.assertEqual(code, 1)
         self.assertIn("Unexpected response", out)
+
+
+if __name__ == "__main__":
+    unittest.main()
