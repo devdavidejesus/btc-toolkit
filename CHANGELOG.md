@@ -6,10 +6,17 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+## [1.8.3] — 2026-11-10
+
+Fixes from a read-through of the whole project, the first contributed documentation, and the first immutable
+GitHub Release. The `--json` output keeps its keys and their meaning.
+
 ### Added
 - `docs/cookbook.md`: eight `--json` recipes with `jq`, each with a real mainnet sample output, linked from
   the README and the `docs/commands.md` index (#63). `tests/test_cookbook.py` checks that every recipe uses a real
-  command and flags and only keys documented in `docs/json-schema.md`.
+  command and flags and only keys documented in `docs/json-schema.md`. Contributed by @Cael-Pairrett.
+- Releases are immutable from 1.8.3 on: once published, a GitHub Release's tag and files cannot be changed, and
+  GitHub signs an attestation for it. `docs/releases.md` shows how to check it with `gh release verify`.
 
 ### Security
 - CI: `.github/requirements/sign.in` states the certifi floor (2026.10.19, GHSA-6q48-6c7w-9gw2) explicitly, so
@@ -371,7 +378,8 @@ First stable release: `opreturn`, `balance`, `fees`, `block`, `utxo` — the ori
 - 0.4.0 — block explorer · 0.3.0 — fee estimator · 0.2.0 — balance checker and unified CLI.
 - Phase 1 (untagged) — OP_RETURN reader.
 
-[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.3...HEAD
+[1.8.3]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.2...v1.8.3
 [1.8.2]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/devdavidejesus/btc-toolkit/compare/v1.7.2...v1.8.0
