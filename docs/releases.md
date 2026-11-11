@@ -63,6 +63,16 @@ life on 2026-10-01 and was dropped in 1.7.0.
 
 ## How to verify a package yourself
 
+**Immutable release** — from 1.8.3 on, GitHub Releases are immutable: once
+published, the tag cannot be moved and the files cannot be replaced or added
+to, and GitHub signs an attestation listing every file. Check the release, or a
+file you downloaded from it:
+
+```bash
+gh release verify vX.Y.Z -R devdavidejesus/btc-toolkit
+gh release verify-asset vX.Y.Z btc_toolkit-X.Y.Z-py3-none-any.whl -R devdavidejesus/btc-toolkit
+```
+
 **GitHub Release files** — every file attached to a release (from 1.6.1 on) has a
 Sigstore bundle next to it (`<file>.sigstore.json`):
 
