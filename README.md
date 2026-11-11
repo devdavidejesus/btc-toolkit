@@ -95,6 +95,7 @@ cat txids.txt | btc-toolkit tx - --json | jq -r '.fee_rate_sat_vb'
 
 Every command is also a typed Python function: [`docs/python-api.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/python-api.md). Output schemas:
 [`docs/json-schema.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/json-schema.md).
+Copy-paste `jq` recipes: [`docs/cookbook.md`](https://github.com/devdavidejesus/btc-toolkit/blob/main/docs/cookbook.md).
 
 ## Seen in the wild
 
