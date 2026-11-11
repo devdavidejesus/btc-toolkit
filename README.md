@@ -111,8 +111,8 @@ and in [awesome-osint](https://github.com/jivoi/awesome-osint) and
 
 ## Roadmap
 
-Next: testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)), plain Esplora backends
-([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)) and a `--json` cookbook ([#63](https://github.com/devdavidejesus/btc-toolkit/issues/63)).
+Next: testnet4 ([#64](https://github.com/devdavidejesus/btc-toolkit/issues/64)) and plain Esplora backends
+([#65](https://github.com/devdavidejesus/btc-toolkit/issues/65)).
 Out of scope, for good: keys, signing, broadcasting and runtime dependencies. Past releases: [CHANGELOG](https://github.com/devdavidejesus/btc-toolkit/blob/main/CHANGELOG.md).
 
 ## Support
