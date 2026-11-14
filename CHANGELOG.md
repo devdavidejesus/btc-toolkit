@@ -6,6 +6,11 @@ versioning follows [SemVer](https://semver.org/). The `--json` output follows th
 
 ## [Unreleased]
 
+### Security
+- CI: the release job signs with dnspython 2.9.2 (CVE-2026-128089, excessive memory and CPU use from a crafted WKS
+  record in a zone file). dnspython reaches the signing tools through email-validator and never parses zone files
+  there; btc-toolkit itself has no dependencies, and the built wheel's contents are unchanged.
+
 ## [1.8.3] — 2026-11-10
 
 Fixes from a read-through of the whole project, the first contributed documentation, and the first immutable
