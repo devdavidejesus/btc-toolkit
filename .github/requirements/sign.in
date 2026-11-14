@@ -1,5 +1,5 @@
 sigstore==4.5.1
 # Transitive (via requests), pinned in sign.txt; the floor makes the emSign fix (GHSA-6q48-6c7w-9gw2) explicit.
 certifi>=2026.10.19
-# Transitive (via email-validator), pinned in sign.txt; the floor keeps the fix for GHSA-45c3-73f7-pv4m.
-dnspython>=2.9.0
+# Transitive (via email-validator), pinned in sign.txt; the floor keeps the fixes for GHSA-45c3-73f7-pv4m and CVE-2026-128089.
+dnspython>=2.9.2
